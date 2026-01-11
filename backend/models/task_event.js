@@ -216,12 +216,11 @@ module.exports = (sequelize) => {
         newValue,
         metadata = {}
     ) {
-        const eventType =
-            fieldName === 'status' && newValue === 2
-                ? 'completed'
-                : fieldName === 'status' && newValue === 3
-                  ? 'archived'
-                  : `${fieldName}_changed`;
+        let eventType = `${fieldName}_changed`;
+        if (fieldName === 'status') {
+            if (newValue === 2) eventType = 'completed';
+            else if (newValue === 3) eventType = 'archived';
+        }
 
         return await TaskEvent.create({
             task_id: taskId,

@@ -488,10 +488,7 @@ const HabitDetails: React.FC = () => {
                     currentElement = null;
             }
 
-            if (
-                currentElement &&
-                currentElement.contains(event.target as Node)
-            ) {
+            if (currentElement?.contains(event.target as Node)) {
                 return;
             }
             saveField(editingField);

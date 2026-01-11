@@ -26,8 +26,19 @@ const {
 const { logError } = require('../../services/logService');
 const { logEvent } = require('./taskEventService');
 
-const { serializeTask, serializeTasks } = require('./core/serializers');
+const {
+    serializeTask,
+    serializeTasks,
+    toISOStringOrNull,
+} = require('./core/serializers');
 const { updateTaskTags } = require('./operations/tags');
+
+// Extract date portion (YYYY-MM-DD) from date value
+function toDateString(date) {
+    if (!date) return null;
+    if (date instanceof Date) return date.toISOString().split('T')[0];
+    return new Date(date).toISOString().split('T')[0];
+}
 const { filterTasksByParams } = require('./queries/query-builders');
 const {
     getSafeTimezone,
@@ -385,16 +396,8 @@ router.post('/task', async (req, res) => {
                 Project: null,
                 subtasks: [],
                 today_move_count: 0,
-                due_date: task.due_date
-                    ? task.due_date instanceof Date
-                        ? task.due_date.toISOString().split('T')[0]
-                        : new Date(task.due_date).toISOString().split('T')[0]
-                    : null,
-                completed_at: task.completed_at
-                    ? task.completed_at instanceof Date
-                        ? task.completed_at.toISOString()
-                        : new Date(task.completed_at).toISOString()
-                    : null,
+                due_date: toDateString(task.due_date),
+                completed_at: toISOStringOrNull(task.completed_at),
             };
             return res.status(201).json(fallbackTask);
         }
@@ -581,11 +584,7 @@ router.patch('/task/:uid', requireTaskWriteAccess, async (req, res) => {
             'completion_based',
         ];
 
-        const recurrenceChanged = await handleRecurrenceUpdate(
-            task,
-            recurrenceFields,
-            req.body
-        );
+        await handleRecurrenceUpdate(task, recurrenceFields, req.body);
 
         const resolveFinalValue = (field) =>
             taskAttributes[field] !== undefined

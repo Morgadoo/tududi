@@ -168,7 +168,7 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({
             if (currentSection) {
                 params.delete('section');
                 const newSearch = params.toString();
-                newUrl = `/profile${newSearch ? `?${newSearch}` : ''}`;
+                newUrl = newSearch ? `/profile?${newSearch}` : '/profile';
                 shouldNavigate = true;
             }
         } else {
@@ -660,10 +660,7 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({
         setTelegramBotInfo(null);
 
         try {
-            if (
-                !formData.telegram_bot_token ||
-                !formData.telegram_bot_token.includes(':')
-            ) {
+            if (!formData.telegram_bot_token?.includes(':')) {
                 throw new Error(t('profile.invalidTelegramToken'));
             }
 
@@ -1308,7 +1305,9 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({
                                 />
 
                                 <KeyboardShortcutsTab
-                                    isActive={activeTab === 'keyboard-shortcuts'}
+                                    isActive={
+                                        activeTab === 'keyboard-shortcuts'
+                                    }
                                     config={formData.keyboard_shortcuts}
                                     onChange={(config) =>
                                         setFormData((prev) => ({

@@ -116,8 +116,6 @@ async function ownershipOrPermissionWhere(resourceType, userId, cache = null) {
         }
     }
 
-    const isUserAdmin = await isAdmin(userUid);
-
     // Admin users should NOT see all resources automatically
     // They should only see their own resources and shared resources, like regular users
     // If admin-level system-wide visibility is needed, it should be via dedicated admin endpoints

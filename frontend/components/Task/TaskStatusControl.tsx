@@ -68,7 +68,7 @@ const TaskStatusControl: React.FC<TaskStatusControlProps> = ({
                     ? desktopCompletionMenuRef.current
                     : mobileCompletionMenuRef.current;
 
-            if (activeRef && activeRef.contains(target)) {
+            if (activeRef?.contains(target)) {
                 return;
             }
 
@@ -472,7 +472,7 @@ const TaskStatusControl: React.FC<TaskStatusControlProps> = ({
                                     e.stopPropagation();
                                     handleCompletionClick(e);
                                 }}
-                                className={`${isCompletingTask ? 'bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400' : `${completionButtonChevronClasses} ${statusButtonColorClasses}`} px-2 border-l ${statusBorderColorClass} transition-all duration-300`}
+                                className={`${isCompletingTask ? 'bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400' : completionButtonChevronClasses + ' ' + statusButtonColorClasses} px-2 border-l ${statusBorderColorClass} transition-all duration-300`}
                                 title={t('tasks.markAsDone', 'Mark as done')}
                                 disabled={isCompletingTask}
                             >

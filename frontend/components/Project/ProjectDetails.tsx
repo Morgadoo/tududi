@@ -402,7 +402,7 @@ const ProjectDetails: React.FC = () => {
     };
 
     const handleSaveBanner = async (imageUrl: string) => {
-        if (!project || !project.uid) return;
+        if (!project?.uid) return;
 
         const updatedProject = await updateProject(project.uid, {
             ...project,

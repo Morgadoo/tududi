@@ -103,7 +103,9 @@ const Tags: React.FC = () => {
     );
 
     // Sort the groups by letter and sort tags within each group
-    const sortedGroupKeys = Object.keys(groupedTags).sort();
+    const sortedGroupKeys = Object.keys(groupedTags).sort((a, b) =>
+        a.localeCompare(b)
+    );
     sortedGroupKeys.forEach((letter) => {
         groupedTags[letter].sort((a, b) =>
             a.name.toLowerCase().localeCompare(b.name.toLowerCase())

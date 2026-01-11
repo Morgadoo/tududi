@@ -19,6 +19,11 @@ import { getApiPath } from '../config/paths';
 import { Link, useNavigate } from 'react-router-dom';
 import { parseDateString } from '../utils/dateUtils';
 
+// Get display name for a task, with fallback
+const getTaskDisplayName = (task: any): string => {
+    return task.name || task.title || `Task ${task.id}`;
+};
+
 const getLocale = (language: string) => {
     switch (language) {
         case 'el':
@@ -80,9 +85,9 @@ const Calendar: React.FC = () => {
                 let tasks;
                 if (Array.isArray(data)) {
                     tasks = data;
-                } else if (data && Array.isArray(data.tasks)) {
+                } else if (data?.tasks && Array.isArray(data.tasks)) {
                     tasks = data.tasks;
-                } else if (data && data.data && Array.isArray(data.data)) {
+                } else if (data?.data && Array.isArray(data.data)) {
                     tasks = data.data;
                 } else {
                     console.error('Unexpected API response format:', data);
@@ -118,7 +123,7 @@ const Calendar: React.FC = () => {
                 const deferDate = new Date(task.defer_until);
                 const taskEvent = {
                     id: `task-defer-${task.id}`,
-                    title: `⏰ ${task.name || task.title || `Task ${task.id}`}`,
+                    title: `⏰ ${getTaskDisplayName(task)}`,
                     start: deferDate,
                     end: new Date(deferDate.getTime() + 60 * 60 * 1000), // 1 hour duration
                     type: 'task' as const,
@@ -152,7 +157,7 @@ const Calendar: React.FC = () => {
                 if (createdDate.toDateString() === today.toDateString()) {
                     const taskEvent = {
                         id: `task-created-${task.id}`,
-                        title: `📝 ${task.name || task.title || `Task ${task.id}`}`,
+                        title: `📝 ${getTaskDisplayName(task)}`,
                         start: createdDate,
                         end: new Date(createdDate.getTime() + 30 * 60 * 1000), // 30 min duration
                         type: 'task' as const,
@@ -166,7 +171,7 @@ const Calendar: React.FC = () => {
             if (!task.defer_until && !task.due_date && !task.created_at) {
                 const taskEvent = {
                     id: `task-fallback-${task.id}`,
-                    title: `📌 ${task.name || task.title || `Task ${task.id}`}`,
+                    title: `📌 ${getTaskDisplayName(task)}`,
                     start: new Date(), // Today
                     end: new Date(Date.now() + 30 * 60 * 1000), // 30 min duration
                     type: 'task' as const,

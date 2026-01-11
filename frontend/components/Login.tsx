@@ -99,7 +99,7 @@ const Login: React.FC = () => {
             const data = await response.json();
 
             if (response.ok) {
-                if (data.user && data.user.language) {
+                if (data.user?.language) {
                     await i18n.changeLanguage(data.user.language);
                 }
 

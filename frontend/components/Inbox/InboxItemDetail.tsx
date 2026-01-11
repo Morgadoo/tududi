@@ -62,7 +62,7 @@ const InboxItemDetail: React.FC<InboxItemDetailProps> = ({
                 !containerRef.current.contains(event.target as Node)
             ) {
                 if (composerRef.current) {
-                    void composerRef.current.submit();
+                    composerRef.current.submit().catch(console.error);
                 } else {
                     setIsEditing(false);
                 }
@@ -249,9 +249,7 @@ const InboxItemDetail: React.FC<InboxItemDetailProps> = ({
     );
     const projectRefs = parseProjectRefs(fullContent);
     const hasLongContent =
-        Boolean(item.title && item.title.trim()) &&
-        item.title !== null &&
-        item.title !== fullContent;
+        Boolean(item.title?.trim()) && item.title !== fullContent;
     const iconTooltip = isBookmarkItem
         ? t('inbox.iconTooltip.bookmark', 'Bookmark link')
         : t('inbox.iconTooltip.text', 'Captured text');
@@ -381,9 +379,9 @@ const InboxItemDetail: React.FC<InboxItemDetailProps> = ({
             };
 
             if (item.uid !== undefined) {
-                void openTaskModal(newTask, item.uid);
+                openTaskModal(newTask, item.uid);
             } else {
-                void openTaskModal(newTask);
+                openTaskModal(newTask);
             }
         } catch (error) {
             console.error('Error converting to task:', error);
@@ -457,7 +455,7 @@ const InboxItemDetail: React.FC<InboxItemDetailProps> = ({
                         timeoutPromise,
                     ])) as any;
 
-                    if (result && result.title) {
+                    if (result?.title) {
                         title = result.title;
                         content = sourceText;
                         isBookmark = true;

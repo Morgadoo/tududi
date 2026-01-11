@@ -87,7 +87,7 @@ class TelegramService {
     }
 
     async stopPolling(userId) {
-        const success = telegramPoller.removeUser(userId);
+        telegramPoller.removeUser(userId);
 
         return {
             success: true,

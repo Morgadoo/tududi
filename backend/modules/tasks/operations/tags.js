@@ -19,8 +19,9 @@ async function updateTaskTags(task, tagsData, userId) {
     }
 
     if (invalidTags.length > 0) {
+        const formatTag = (t) => `"${t.name}" (${t.error})`;
         throw new Error(
-            `Invalid tag names: ${invalidTags.map((t) => `"${t.name}" (${t.error})`).join(', ')}`
+            `Invalid tag names: ${invalidTags.map(formatTag).join(', ')}`
         );
     }
 

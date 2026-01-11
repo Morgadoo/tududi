@@ -17,6 +17,13 @@ function sortTags(tags) {
     );
 }
 
+// Convert date to ISO string, handling both Date objects and strings
+function toISOStringOrNull(date) {
+    if (!date) return null;
+    if (date instanceof Date) return date.toISOString();
+    return new Date(date).toISOString();
+}
+
 async function serializeTask(
     task,
     userTimezone = 'UTC',
@@ -28,11 +35,12 @@ async function serializeTask(
     }
     const taskJson = task.toJSON ? task.toJSON() : task;
 
-    const todayMoveCount = taskJson.is_virtual_occurrence
-        ? 0
-        : moveCountMap
-          ? moveCountMap[task.id] || 0
-          : await getTaskTodayMoveCount(task.id);
+    let todayMoveCount = 0;
+    if (!taskJson.is_virtual_occurrence) {
+        todayMoveCount = moveCountMap
+            ? moveCountMap[task.id] || 0
+            : await getTaskTodayMoveCount(task.id);
+    }
 
     const safeTimezone = getSafeTimezone(userTimezone);
 
@@ -108,18 +116,10 @@ async function serializeTask(
                       subtask.defer_until,
                       safeTimezone
                   ),
-                  completed_at: subtask.completed_at
-                      ? subtask.completed_at instanceof Date
-                          ? subtask.completed_at.toISOString()
-                          : new Date(subtask.completed_at).toISOString()
-                      : null,
+                  completed_at: toISOStringOrNull(subtask.completed_at),
               }))
             : [],
-        completed_at: task.completed_at
-            ? task.completed_at instanceof Date
-                ? task.completed_at.toISOString()
-                : new Date(task.completed_at).toISOString()
-            : null,
+        completed_at: toISOStringOrNull(task.completed_at),
         today_move_count: todayMoveCount,
     };
 }
@@ -157,4 +157,5 @@ module.exports = {
     serializeTasks,
     buildMetricsResponse,
     sortTags,
+    toISOStringOrNull,
 };

@@ -254,7 +254,7 @@ const Notes: React.FC = () => {
     };
 
     const handleSaveInlineNote = async () => {
-        if (!editingNote || !editingNote.title) return;
+        if (!editingNote?.title) return;
 
         try {
             if (editingNote.tags && editingNote.tags.length > 0) {

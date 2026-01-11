@@ -309,10 +309,9 @@ const Projects: React.FC = () => {
                     project.name
                         .toLowerCase()
                         .includes(searchQuery.toLowerCase()) ||
-                    (project.description &&
-                        project.description
-                            .toLowerCase()
-                            .includes(searchQuery.toLowerCase()))
+                    project.description
+                        ?.toLowerCase()
+                        .includes(searchQuery.toLowerCase())
             );
         }
 

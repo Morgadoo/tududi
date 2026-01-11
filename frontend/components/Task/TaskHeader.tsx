@@ -757,7 +757,7 @@ const TaskWithSubtasks: React.FC<TaskWithSubtasksProps> = (props) => {
         setShowSubtasks(hasSubtasksFromData);
 
         if (!hasSubtasksFromData) {
-            void loadSubtasks();
+            loadSubtasks().catch(console.error);
         }
     }, [props.task.id, props.task.subtasks, loadSubtasks]);
 

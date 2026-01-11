@@ -303,7 +303,7 @@ const InboxItems: React.FC = () => {
         note: Note | null,
         inboxItemUid?: string
     ) => {
-        if (note && note.content && isUrl(note.content.trim())) {
+        if (note?.content && isUrl(note.content.trim())) {
             if (!note.tags) {
                 note.tags = [{ name: 'bookmark' }];
             } else if (!note.tags.some((tag) => tag.name === 'bookmark')) {

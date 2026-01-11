@@ -5,6 +5,14 @@ const { logError } = require('../../../services/logService');
 const { serializeTask } = require('../core/serializers');
 const { parsePriority, parseStatus } = require('../core/parsers');
 
+// Get completed_at date for a subtask based on its status
+function getCompletedAt(subtask) {
+    const isDone =
+        subtask.status === 'done' || subtask.status === Task.STATUS.DONE;
+    if (!isDone) return null;
+    return subtask.completed_at ? new Date(subtask.completed_at) : new Date();
+}
+
 async function getSubtasks(parentTaskId, userId, timezone) {
     const parent = await taskRepository.findById(parentTaskId);
     if (!parent) {
@@ -67,12 +75,7 @@ async function createSubtasks(parentTaskId, subtasks, userId) {
             user_id: userId,
             priority: parsePriority(subtask.priority) || Task.PRIORITY.LOW,
             status: parseStatus(subtask.status),
-            completed_at:
-                subtask.status === 'done' || subtask.status === Task.STATUS.DONE
-                    ? subtask.completed_at
-                        ? new Date(subtask.completed_at)
-                        : new Date()
-                    : null,
+            completed_at: getCompletedAt(subtask),
             recurrence_type: 'none',
             completion_based: false,
             order: maxOrder + index + 1, // Assign sequential order values

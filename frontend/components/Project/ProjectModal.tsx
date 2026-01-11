@@ -113,7 +113,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
         if (project) {
             // Convert ISO date to YYYY-MM-DD format if needed
             let dueDateValue = project.due_date_at;
-            if (dueDateValue && dueDateValue.includes('T')) {
+            if (dueDateValue?.includes('T')) {
                 dueDateValue = dueDateValue.split('T')[0];
             }
 
@@ -143,16 +143,14 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
             const target = event.target as Node;
 
             // Check if click is inside modal
-            if (modalRef.current && modalRef.current.contains(target)) {
+            if (modalRef.current?.contains(target)) {
                 return;
             }
 
             // Check if click is on priority dropdown (which is portaled to document.body)
             const clickedElement = target as Element;
             if (
-                clickedElement &&
-                clickedElement.closest &&
-                clickedElement.closest(
+                clickedElement?.closest?.(
                     '.fixed.z-50.bg-white, .fixed.z-50.bg-gray-700'
                 )
             ) {
@@ -307,7 +305,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
     };
 
     const handleDeleteConfirm = async () => {
-        if (project && project.uid && onDelete) {
+        if (project?.uid && onDelete) {
             try {
                 await onDelete(project.uid);
                 showSuccessToast(t('success.projectDeleted'));
@@ -760,7 +758,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
                             <div className="flex-shrink-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-3 py-2 flex items-center justify-between sm:rounded-b-lg">
                                 {/* Left side: Delete and Cancel */}
                                 <div className="flex items-center space-x-3">
-                                    {project && project.id && onDelete && (
+                                    {project?.id && onDelete && (
                                         <button
                                             type="button"
                                             onClick={handleDeleteClick}

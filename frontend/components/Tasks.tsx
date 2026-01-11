@@ -214,10 +214,9 @@ const Tasks: React.FC = () => {
 
             const searchParams = allTasksUrl.toString();
 
+            const tagParam = tagId ? `&tag=${tagId}` : '';
             const tasksResponse = await fetch(
-                getApiPath(
-                    `tasks?${searchParams}${tagId ? `&tag=${tagId}` : ''}`
-                )
+                getApiPath(`tasks?${searchParams}${tagParam}`)
             );
 
             if (tasksResponse.ok) {

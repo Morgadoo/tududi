@@ -11,6 +11,13 @@ const { uid: generateUid } = require('../../utils/uid');
 const { extractUidFromSlug } = require('../../utils/slug-utils');
 const { logError } = require('../../services/logService');
 
+// Extract date portion (YYYY-MM-DD) from date value
+function toDateString(date) {
+    if (!date) return null;
+    if (typeof date === 'string') return date.split('T')[0];
+    return date.toISOString().split('T')[0];
+}
+
 /**
  * Update project tags.
  */
@@ -32,8 +39,9 @@ async function updateProjectTags(project, tagsData, userId) {
     }
 
     if (invalidTags.length > 0) {
+        const formatTag = (t) => `"${t.name}" (${t.error})`;
         throw new ValidationError(
-            `Invalid tag names: ${invalidTags.map((t) => `"${t.name}" (${t.error})`).join(', ')}`
+            `Invalid tag names: ${invalidTags.map(formatTag).join(', ')}`
         );
     }
 
@@ -193,11 +201,7 @@ class ProjectsService {
                           ...subtask,
                           tags: sortTags(subtask.Tags),
                       })),
-                      due_date: task.due_date
-                          ? typeof task.due_date === 'string'
-                              ? task.due_date.split('T')[0]
-                              : task.due_date.toISOString().split('T')[0]
-                          : null,
+                      due_date: toDateString(task.due_date),
                   };
                   delete normalizedTask.Tags;
                   delete normalizedTask.Subtasks;
