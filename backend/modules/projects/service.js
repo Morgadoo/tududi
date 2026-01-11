@@ -13,8 +13,9 @@ const { logError } = require('../../services/logService');
 
 /**
  * Update project tags.
+ * Tags are scoped to the user's profile for proper isolation.
  */
-async function updateProjectTags(project, tagsData, userId) {
+async function updateProjectTags(project, tagsData, userId, profileId = null) {
     if (!tagsData) return;
 
     const validTagNames = [];
@@ -44,7 +45,8 @@ async function updateProjectTags(project, tagsData, userId) {
 
     const existingTags = await projectsRepository.findTagsByNames(
         userId,
-        validTagNames
+        validTagNames,
+        profileId
     );
     const existingTagNames = existingTags.map((tag) => tag.name);
     const newTagNames = validTagNames.filter(
@@ -52,7 +54,9 @@ async function updateProjectTags(project, tagsData, userId) {
     );
 
     const createdTags = await Promise.all(
-        newTagNames.map((name) => projectsRepository.createTag(name, userId))
+        newTagNames.map((name) =>
+            projectsRepository.createTag(name, userId, profileId)
+        )
     );
 
     await project.setTags([...existingTags, ...createdTags]);
@@ -278,7 +282,7 @@ class ProjectsService {
         const project = await projectsRepository.create(projectData);
 
         try {
-            await updateProjectTags(project, tagsData, userId);
+            await updateProjectTags(project, tagsData, userId, profileId);
         } catch (tagError) {
             logError(
                 'Tag update failed, but project created successfully:',
@@ -297,7 +301,7 @@ class ProjectsService {
     /**
      * Update a project.
      */
-    async update(userId, uid, data) {
+    async update(userId, uid, data, profileId = null) {
         const validatedUid = validateUid(uid);
         const project = await projectsRepository.findOne({ uid: validatedUid });
 
@@ -334,7 +338,7 @@ class ProjectsService {
         else if (state !== undefined) updateData.status = state;
 
         await projectsRepository.update(project, updateData);
-        await updateProjectTags(project, tagsData, userId);
+        await updateProjectTags(project, tagsData, userId, profileId);
 
         const projectWithAssociations =
             await projectsRepository.findByUidWithTagsAndArea(validatedUid);

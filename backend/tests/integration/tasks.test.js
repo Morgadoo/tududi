@@ -1,7 +1,7 @@
 const request = require('supertest');
 const app = require('../../app');
-const { Task, User } = require('../../models');
-const { createTestUser } = require('../helpers/testUtils');
+const { Task, User, Profile } = require('../../models');
+const { createTestUser, createTestProfile } = require('../helpers/testUtils');
 
 describe('Tasks Routes', () => {
     let user, agent;
@@ -490,6 +490,171 @@ describe('Tasks Routes', () => {
 
             // Template should not be included because it's in the past
             expect(taskIds).not.toContain(recurringTemplate.id);
+        });
+    });
+
+    describe('Profile Isolation', () => {
+        let workProfile, personalProfile;
+
+        beforeEach(async () => {
+            workProfile = await createTestProfile(user, { name: 'Work' });
+            personalProfile = await createTestProfile(user, {
+                name: 'Personal',
+            });
+            await user.update({ active_profile_id: workProfile.id });
+        });
+
+        it('should only return tasks from active profile', async () => {
+            await Task.create({
+                name: 'Work Task',
+                user_id: user.id,
+                profile_id: workProfile.id,
+                status: 0,
+            });
+            await Task.create({
+                name: 'Personal Task',
+                user_id: user.id,
+                profile_id: personalProfile.id,
+                status: 0,
+            });
+
+            const response = await agent.get('/api/tasks');
+
+            expect(response.status).toBe(200);
+            const taskNames = response.body.tasks.map((t) => t.name);
+            expect(taskNames).toContain('Work Task');
+            expect(taskNames).not.toContain('Personal Task');
+        });
+
+        it('should create tasks in active profile', async () => {
+            const response = await agent.post('/api/task').send({
+                name: 'New Task',
+            });
+
+            expect(response.status).toBe(201);
+
+            const task = await Task.findByPk(response.body.id);
+            expect(task.profile_id).toBe(workProfile.id);
+        });
+
+        it('should see different tasks after profile switch', async () => {
+            await Task.create({
+                name: 'Work Task',
+                user_id: user.id,
+                profile_id: workProfile.id,
+                status: 0,
+            });
+            await Task.create({
+                name: 'Personal Task',
+                user_id: user.id,
+                profile_id: personalProfile.id,
+                status: 0,
+            });
+
+            // Get tasks from work profile
+            let response = await agent.get('/api/tasks');
+            expect(
+                response.body.tasks.some((t) => t.name === 'Work Task')
+            ).toBe(true);
+            expect(
+                response.body.tasks.some((t) => t.name === 'Personal Task')
+            ).toBe(false);
+
+            // Switch to personal profile
+            await agent.patch(`/api/v1/profiles/switch/${personalProfile.uid}`);
+
+            // Get tasks from personal profile
+            response = await agent.get('/api/tasks');
+            expect(
+                response.body.tasks.some((t) => t.name === 'Work Task')
+            ).toBe(false);
+            expect(
+                response.body.tasks.some((t) => t.name === 'Personal Task')
+            ).toBe(true);
+        });
+
+        it('should allow access to tasks from other profiles via direct uid (user owns all profiles)', async () => {
+            // Design decision: Profile is a filter for lists, but direct UID access
+            // works across profiles since the user owns all their data
+            const personalTask = await Task.create({
+                name: 'Personal Task',
+                user_id: user.id,
+                profile_id: personalProfile.id,
+                status: 0,
+            });
+
+            // Access personal task while in work profile - should succeed
+            const response = await agent.get(`/api/task/${personalTask.uid}`);
+
+            expect(response.status).toBe(200);
+            expect(response.body.name).toBe('Personal Task');
+        });
+
+        it('should allow updating tasks from other profiles (user owns all profiles)', async () => {
+            const personalTask = await Task.create({
+                name: 'Personal Task',
+                user_id: user.id,
+                profile_id: personalProfile.id,
+                status: 0,
+            });
+
+            const response = await agent
+                .patch(`/api/task/${personalTask.uid}`)
+                .send({ name: 'Updated Name' });
+
+            expect(response.status).toBe(200);
+
+            // Verify task was updated
+            await personalTask.reload();
+            expect(personalTask.name).toBe('Updated Name');
+        });
+
+        it('should allow deleting tasks from other profiles (user owns all profiles)', async () => {
+            const personalTask = await Task.create({
+                name: 'Personal Task',
+                user_id: user.id,
+                profile_id: personalProfile.id,
+                status: 0,
+            });
+
+            const response = await agent.delete(
+                `/api/task/${personalTask.uid}`
+            );
+
+            expect(response.status).toBe(200);
+
+            // Verify task was deleted
+            const deleted = await Task.findByPk(personalTask.id);
+            expect(deleted).toBeNull();
+        });
+
+        it('should filter tasks by status within active profile only', async () => {
+            await Task.create({
+                name: 'Work Done Task',
+                user_id: user.id,
+                profile_id: workProfile.id,
+                status: 2, // done
+            });
+            await Task.create({
+                name: 'Work Pending Task',
+                user_id: user.id,
+                profile_id: workProfile.id,
+                status: 0, // not started
+            });
+            await Task.create({
+                name: 'Personal Done Task',
+                user_id: user.id,
+                profile_id: personalProfile.id,
+                status: 2, // done
+            });
+
+            const response = await agent.get('/api/tasks?status=done');
+
+            expect(response.status).toBe(200);
+            const taskNames = response.body.tasks.map((t) => t.name);
+            expect(taskNames).toContain('Work Done Task');
+            expect(taskNames).not.toContain('Personal Done Task');
+            expect(taskNames).not.toContain('Work Pending Task');
         });
     });
 });

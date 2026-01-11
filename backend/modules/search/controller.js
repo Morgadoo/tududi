@@ -14,10 +14,12 @@ const searchController = {
         try {
             const userId = req.currentUser?.id;
             const timezone = req.currentUser?.timezone || 'UTC';
+            const profileId = req.activeProfileId || null;
             const result = await searchService.search(
                 userId,
                 req.query,
-                timezone
+                timezone,
+                profileId
             );
             res.json(result);
         } catch (error) {

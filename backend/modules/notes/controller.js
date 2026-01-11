@@ -93,18 +93,24 @@ const notesController = {
     async update(req, res, next) {
         try {
             const userId = requireUserId(req);
+            const profileId = req.activeProfileId;
             const { uid } = req.params;
             const { title, content, project_uid, project_id, tags, color } =
                 req.body;
 
-            const note = await notesService.update(userId, uid, {
-                title,
-                content,
-                project_uid,
-                project_id,
-                tags,
-                color,
-            });
+            const note = await notesService.update(
+                userId,
+                uid,
+                {
+                    title,
+                    content,
+                    project_uid,
+                    project_id,
+                    tags,
+                    color,
+                },
+                profileId
+            );
 
             res.json(note);
         } catch (error) {

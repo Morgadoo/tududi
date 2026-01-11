@@ -1,7 +1,7 @@
 const request = require('supertest');
 const app = require('../../app');
-const { Note, User, Project } = require('../../models');
-const { createTestUser } = require('../helpers/testUtils');
+const { Note, User, Project, Profile } = require('../../models');
+const { createTestUser, createTestProfile } = require('../helpers/testUtils');
 
 describe('Notes Routes', () => {
     let user, project, agent;
@@ -299,6 +299,134 @@ describe('Notes Routes', () => {
 
             expect(response.status).toBe(401);
             expect(response.body.error).toBe('Authentication required');
+        });
+    });
+
+    describe('Profile Isolation', () => {
+        let workProfile, personalProfile;
+
+        beforeEach(async () => {
+            workProfile = await createTestProfile(user, { name: 'Work' });
+            personalProfile = await createTestProfile(user, {
+                name: 'Personal',
+            });
+            await user.update({ active_profile_id: workProfile.id });
+        });
+
+        it('should only return notes from active profile', async () => {
+            await Note.create({
+                title: 'Work Note',
+                content: 'Work content',
+                user_id: user.id,
+                profile_id: workProfile.id,
+            });
+            await Note.create({
+                title: 'Personal Note',
+                content: 'Personal content',
+                user_id: user.id,
+                profile_id: personalProfile.id,
+            });
+
+            const response = await agent.get('/api/notes');
+
+            expect(response.status).toBe(200);
+            expect(response.body.length).toBe(1);
+            expect(response.body[0].title).toBe('Work Note');
+        });
+
+        it('should create notes in active profile', async () => {
+            const response = await agent.post('/api/note').send({
+                title: 'New Note',
+                content: 'Content',
+            });
+
+            expect(response.status).toBe(201);
+
+            const note = await Note.findByPk(response.body.id);
+            expect(note.profile_id).toBe(workProfile.id);
+        });
+
+        it('should see different notes after profile switch', async () => {
+            await Note.create({
+                title: 'Work Note',
+                content: 'Work content',
+                user_id: user.id,
+                profile_id: workProfile.id,
+            });
+            await Note.create({
+                title: 'Personal Note',
+                content: 'Personal content',
+                user_id: user.id,
+                profile_id: personalProfile.id,
+            });
+
+            // Get notes from work profile
+            let response = await agent.get('/api/notes');
+            expect(response.body.length).toBe(1);
+            expect(response.body[0].title).toBe('Work Note');
+
+            // Switch to personal profile
+            await agent.patch(`/api/v1/profiles/switch/${personalProfile.uid}`);
+
+            // Get notes from personal profile
+            response = await agent.get('/api/notes');
+            expect(response.body.length).toBe(1);
+            expect(response.body[0].title).toBe('Personal Note');
+        });
+
+        it('should allow access to notes from other profiles via direct uid (user owns all profiles)', async () => {
+            // Design decision: Profile is a filter for lists, but direct UID access
+            // works across profiles since the user owns all their data
+            const personalNote = await Note.create({
+                title: 'Personal Note',
+                content: 'Personal content',
+                user_id: user.id,
+                profile_id: personalProfile.id,
+            });
+
+            // Access personal note while in work profile - should succeed
+            const response = await agent.get(`/api/note/${personalNote.uid}`);
+
+            expect(response.status).toBe(200);
+            expect(response.body.title).toBe('Personal Note');
+        });
+
+        it('should allow updating notes from other profiles (user owns all profiles)', async () => {
+            const personalNote = await Note.create({
+                title: 'Personal Note',
+                content: 'Personal content',
+                user_id: user.id,
+                profile_id: personalProfile.id,
+            });
+
+            const response = await agent
+                .patch(`/api/note/${personalNote.uid}`)
+                .send({ title: 'Updated Title' });
+
+            expect(response.status).toBe(200);
+
+            // Verify note was updated
+            await personalNote.reload();
+            expect(personalNote.title).toBe('Updated Title');
+        });
+
+        it('should allow deleting notes from other profiles (user owns all profiles)', async () => {
+            const personalNote = await Note.create({
+                title: 'Personal Note',
+                content: 'Personal content',
+                user_id: user.id,
+                profile_id: personalProfile.id,
+            });
+
+            const response = await agent.delete(
+                `/api/note/${personalNote.uid}`
+            );
+
+            expect(response.status).toBe(200);
+
+            // Verify note was deleted
+            const deleted = await Note.findByPk(personalNote.id);
+            expect(deleted).toBeNull();
         });
     });
 });

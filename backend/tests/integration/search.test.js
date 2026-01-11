@@ -1373,4 +1373,168 @@ describe('Universal Search Routes', () => {
             expect(response.body.results.length).toBe(20);
         });
     });
+
+    describe('Profile Isolation', () => {
+        const { Profile } = require('../../models');
+        const { createTestProfile } = require('../helpers/testUtils');
+        let workProfile, personalProfile;
+
+        beforeEach(async () => {
+            // Create two profiles for the user
+            workProfile = await createTestProfile(user, { name: 'Work' });
+            personalProfile = await createTestProfile(user, {
+                name: 'Personal',
+            });
+            await user.update({ active_profile_id: workProfile.id });
+
+            // Create data in both profiles
+            await Task.create({
+                user_id: user.id,
+                profile_id: workProfile.id,
+                name: 'Work Task Alpha',
+                status: 0,
+            });
+            await Task.create({
+                user_id: user.id,
+                profile_id: workProfile.id,
+                name: 'Work Task Beta',
+                status: 0,
+            });
+            await Task.create({
+                user_id: user.id,
+                profile_id: personalProfile.id,
+                name: 'Personal Task Alpha',
+                status: 0,
+            });
+
+            await Project.create({
+                user_id: user.id,
+                profile_id: workProfile.id,
+                name: 'Work Project',
+            });
+            await Project.create({
+                user_id: user.id,
+                profile_id: personalProfile.id,
+                name: 'Personal Project',
+            });
+
+            await Note.create({
+                user_id: user.id,
+                profile_id: workProfile.id,
+                title: 'Work Note',
+                content: 'Work content',
+            });
+            await Note.create({
+                user_id: user.id,
+                profile_id: personalProfile.id,
+                title: 'Personal Note',
+                content: 'Personal content',
+            });
+        });
+
+        it('should only return results from active profile', async () => {
+            const response = await agent.get('/api/search').query({
+                q: 'Alpha',
+            });
+
+            expect(response.status).toBe(200);
+            const taskResults = response.body.results.filter(
+                (r) => r.type === 'Task'
+            );
+            expect(taskResults.length).toBe(1);
+            expect(taskResults[0].name).toBe('Work Task Alpha');
+        });
+
+        it('should search all entity types within active profile', async () => {
+            const response = await agent.get('/api/search').query({
+                q: 'Work',
+            });
+
+            expect(response.status).toBe(200);
+            const types = response.body.results.map((r) => r.type);
+            expect(types).toContain('Task');
+            expect(types).toContain('Project');
+            expect(types).toContain('Note');
+
+            // Verify all results are from work profile
+            const names = response.body.results.map((r) => r.name || r.title);
+            expect(names).not.toContain('Personal Task Alpha');
+            expect(names).not.toContain('Personal Project');
+            expect(names).not.toContain('Personal Note');
+        });
+
+        it('should return different results after profile switch', async () => {
+            // Search in work profile
+            let response = await agent.get('/api/search').query({
+                q: 'Alpha',
+            });
+            expect(response.body.results.length).toBe(1);
+            expect(response.body.results[0].name).toBe('Work Task Alpha');
+
+            // Switch to personal profile
+            await agent.patch(`/api/v1/profiles/switch/${personalProfile.uid}`);
+
+            // Search again
+            response = await agent.get('/api/search').query({
+                q: 'Alpha',
+            });
+            expect(response.body.results.length).toBe(1);
+            expect(response.body.results[0].name).toBe('Personal Task Alpha');
+        });
+
+        it('should filter by tags within active profile only', async () => {
+            // Create tags in both profiles with different names
+            // (same name not allowed due to legacy constraint)
+            const workTag = await Tag.create({
+                user_id: user.id,
+                profile_id: workProfile.id,
+                name: 'work-urgent',
+            });
+            const personalTag = await Tag.create({
+                user_id: user.id,
+                profile_id: personalProfile.id,
+                name: 'personal-urgent',
+            });
+
+            // Create tagged tasks
+            const workTask = await Task.create({
+                user_id: user.id,
+                profile_id: workProfile.id,
+                name: 'Tagged Work Task',
+                status: 0,
+            });
+            await workTask.addTag(workTag);
+
+            const personalTask = await Task.create({
+                user_id: user.id,
+                profile_id: personalProfile.id,
+                name: 'Tagged Personal Task',
+                status: 0,
+            });
+            await personalTask.addTag(personalTag);
+
+            // Search by tag in work profile
+            const response = await agent.get('/api/search').query({
+                filters: 'Task',
+                tags: 'work-urgent',
+            });
+
+            expect(response.status).toBe(200);
+            const taggedTasks = response.body.results.filter((r) =>
+                r.name.includes('Tagged')
+            );
+            expect(taggedTasks.length).toBe(1);
+            expect(taggedTasks[0].name).toBe('Tagged Work Task');
+        });
+
+        it('should return empty results for query matching only other profile', async () => {
+            const response = await agent.get('/api/search').query({
+                q: 'Personal',
+            });
+
+            expect(response.status).toBe(200);
+            // Should not find anything since we're in work profile
+            expect(response.body.results.length).toBe(0);
+        });
+    });
 });

@@ -26,9 +26,14 @@ const requireAuth = async (req, res, next) => {
             }
             req.currentUser = user;
 
-            // Load active profile
+            // Load active profile (verify it belongs to this user)
             if (user.active_profile_id) {
-                const profile = await Profile.findByPk(user.active_profile_id);
+                const profile = await Profile.findOne({
+                    where: {
+                        id: user.active_profile_id,
+                        user_id: user.id,
+                    },
+                });
                 if (profile) {
                     req.activeProfile = profile;
                     req.activeProfileId = profile.id;
@@ -58,9 +63,14 @@ const requireAuth = async (req, res, next) => {
         req.currentUser = user;
         req.authToken = apiToken;
 
-        // Load active profile for API token auth
+        // Load active profile for API token auth (verify it belongs to this user)
         if (user.active_profile_id) {
-            const profile = await Profile.findByPk(user.active_profile_id);
+            const profile = await Profile.findOne({
+                where: {
+                    id: user.active_profile_id,
+                    user_id: user.id,
+                },
+            });
             if (profile) {
                 req.activeProfile = profile;
                 req.activeProfileId = profile.id;

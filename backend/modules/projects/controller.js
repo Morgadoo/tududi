@@ -80,10 +80,12 @@ const projectsController = {
     async update(req, res, next) {
         try {
             const userId = requireUserId(req);
+            const profileId = req.activeProfileId;
             const project = await projectsService.update(
                 userId,
                 req.params.uid,
-                req.body
+                req.body,
+                profileId
             );
             res.json(project);
         } catch (error) {

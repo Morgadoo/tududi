@@ -14,7 +14,16 @@ const backupController = {
                     .json({ error: 'Authentication required' });
             }
 
-            const result = await backupService.exportData(userId);
+            // Support profile-scoped export via query param or use active profile
+            const scope = req.query.scope; // 'all' or 'profile'
+            let profileId = null;
+
+            if (scope === 'profile') {
+                // Use active profile from auth middleware
+                profileId = req.activeProfileId || null;
+            }
+
+            const result = await backupService.exportData(userId, profileId);
             res.json(result);
         } catch (error) {
             logError('Error exporting user data:', error);
@@ -34,10 +43,16 @@ const backupController = {
                     .json({ error: 'Authentication required' });
             }
 
+            // Support importing into active profile
+            const options = { ...req.body };
+            if (req.body.scope === 'profile' && req.activeProfileId) {
+                options.targetProfileId = req.activeProfileId;
+            }
+
             const result = await backupService.importData(
                 userId,
                 req.file,
-                req.body
+                options
             );
             res.json(result);
         } catch (error) {

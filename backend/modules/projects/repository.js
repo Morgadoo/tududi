@@ -237,19 +237,21 @@ class ProjectsRepository extends BaseRepository {
     }
 
     /**
-     * Find existing tags by names for a user.
+     * Find existing tags by names for a user, optionally scoped to a profile.
      */
-    async findTagsByNames(userId, tagNames) {
-        return Tag.findAll({
-            where: { user_id: userId, name: tagNames },
-        });
+    async findTagsByNames(userId, tagNames, profileId = null) {
+        const where = { user_id: userId, name: tagNames };
+        if (profileId) {
+            where.profile_id = profileId;
+        }
+        return Tag.findAll({ where });
     }
 
     /**
-     * Create a tag.
+     * Create a tag, optionally scoped to a profile.
      */
-    async createTag(name, userId) {
-        return Tag.create({ name, user_id: userId });
+    async createTag(name, userId, profileId = null) {
+        return Tag.create({ name, user_id: userId, profile_id: profileId });
     }
 }
 

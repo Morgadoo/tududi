@@ -38,21 +38,38 @@ async function parseUploadedBackup(fileBuffer, filename) {
 }
 
 class BackupService {
-    async exportData(userId) {
-        const backupData = await exportUserData(userId);
+    /**
+     * Export user data to a backup file.
+     * @param {number} userId - User ID
+     * @param {number|null} profileId - Optional profile ID to scope export (null = all profiles)
+     */
+    async exportData(userId, profileId = null) {
+        const backupData = await exportUserData(userId, profileId);
         const backup = await saveBackup(userId, backupData);
         return {
             success: true,
-            message: 'Backup created successfully',
+            message: profileId
+                ? 'Profile backup created successfully'
+                : 'Backup created successfully',
             backup: {
                 uid: backup.uid,
                 file_size: backup.file_size,
                 item_counts: backup.item_counts,
                 created_at: backup.created_at,
+                scope: backupData.scope,
+                profile: backupData.profile,
             },
         };
     }
 
+    /**
+     * Import data from a backup file.
+     * @param {number} userId - User ID
+     * @param {object} file - Uploaded file object
+     * @param {object} options - Import options
+     * @param {string} options.merge - Whether to merge with existing data ('true'/'false')
+     * @param {number|null} options.targetProfileId - Profile ID to import data into
+     */
     async importData(userId, file, options = {}) {
         if (!file) {
             throw new ValidationError('No backup file provided');
@@ -87,13 +104,18 @@ class BackupService {
 
         const importOptions = {
             merge: options.merge !== 'false',
+            targetProfileId: options.targetProfileId
+                ? parseInt(options.targetProfileId, 10)
+                : null,
         };
 
         const stats = await importUserData(userId, backupData, importOptions);
 
         return {
             success: true,
-            message: 'Backup imported successfully',
+            message: stats.targetProfile
+                ? 'Backup imported to profile successfully'
+                : 'Backup imported successfully',
             stats,
         };
     }

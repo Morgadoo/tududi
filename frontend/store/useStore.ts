@@ -877,6 +877,23 @@ export const useStore = create<StoreState>((set: any) => ({
                 // Reset all other stores to trigger reload with new profile context
                 const store = useStore.getState();
                 store.profilesStore.resetAllStores();
+
+                // Actively reload critical data stores after profile switch
+                // This ensures data is refreshed without requiring a page reload
+                // Small delay to ensure state updates have propagated
+                setTimeout(() => {
+                    const currentStore = useStore.getState();
+                    // Only reload if components haven't already triggered a load
+                    if (!currentStore.tagsStore.isLoading) {
+                        currentStore.tagsStore.loadTags(true);
+                    }
+                    if (!currentStore.areasStore.isLoading) {
+                        currentStore.areasStore.loadAreas();
+                    }
+                    if (!currentStore.notesStore.isLoading) {
+                        currentStore.notesStore.loadNotes();
+                    }
+                }, 100);
             } catch (error) {
                 console.error('Failed to switch profile:', error);
                 throw error;

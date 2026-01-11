@@ -53,12 +53,16 @@ class SearchService {
         params,
         dueDateCondition,
         deferDateCondition,
-        nowDate
+        nowDate,
+        profileId = null
     ) {
         const { searchQuery, priority, recurring, extras, excludeSubtasks } =
             params;
 
         const conditions = { user_id: userId };
+        if (profileId) {
+            conditions.profile_id = profileId;
+        }
         const extraConditions = [];
 
         if (excludeSubtasks) {
@@ -204,14 +208,16 @@ class SearchService {
         dueDateCondition,
         deferDateCondition,
         nowDate,
-        timezone
+        timezone,
+        profileId = null
     ) {
         const conditions = this.buildTaskConditions(
             userId,
             params,
             dueDateCondition,
             deferDateCondition,
-            nowDate
+            nowDate,
+            profileId
         );
         const { include, tagInclude } = this.buildTaskInclude(
             tagIds,
@@ -248,11 +254,20 @@ class SearchService {
     /**
      * Search projects.
      */
-    async searchProjects(userId, params, tagIds, dueDateCondition) {
+    async searchProjects(
+        userId,
+        params,
+        tagIds,
+        dueDateCondition,
+        profileId = null
+    ) {
         const { searchQuery, priority, extras, hasPagination, limit, offset } =
             params;
 
         const conditions = { user_id: userId };
+        if (profileId) {
+            conditions.profile_id = profileId;
+        }
 
         if (searchQuery) {
             const lowerQuery = searchQuery.toLowerCase();
@@ -325,10 +340,13 @@ class SearchService {
     /**
      * Search areas.
      */
-    async searchAreas(userId, params) {
+    async searchAreas(userId, params, profileId = null) {
         const { searchQuery, hasPagination, limit, offset } = params;
 
         const conditions = { user_id: userId };
+        if (profileId) {
+            conditions.profile_id = profileId;
+        }
 
         if (searchQuery) {
             const lowerQuery = searchQuery.toLowerCase();
@@ -374,10 +392,13 @@ class SearchService {
     /**
      * Search notes.
      */
-    async searchNotes(userId, params, tagIds) {
+    async searchNotes(userId, params, tagIds, profileId = null) {
         const { searchQuery, hasPagination, limit, offset } = params;
 
         const conditions = { user_id: userId };
+        if (profileId) {
+            conditions.profile_id = profileId;
+        }
 
         if (searchQuery) {
             const lowerQuery = searchQuery.toLowerCase();
@@ -436,10 +457,13 @@ class SearchService {
     /**
      * Search tags.
      */
-    async searchTags(userId, params) {
+    async searchTags(userId, params, profileId = null) {
         const { searchQuery, hasPagination, limit, offset } = params;
 
         const conditions = { user_id: userId };
+        if (profileId) {
+            conditions.profile_id = profileId;
+        }
 
         if (searchQuery) {
             const lowerQuery = searchQuery.toLowerCase();
@@ -474,7 +498,7 @@ class SearchService {
     /**
      * Universal search across all entity types.
      */
-    async search(userId, query, timezone = 'UTC') {
+    async search(userId, query, timezone = 'UTC', profileId = null) {
         if (!userId) {
             throw new UnauthorizedError('Unauthorized');
         }
@@ -490,10 +514,11 @@ class SearchService {
             offset,
         } = params;
 
-        // Find tag IDs if filtering by tags
+        // Find tag IDs if filtering by tags (profile-scoped)
         const tagIds = await searchRepository.findTagIdsByNames(
             userId,
-            tagNames
+            tagNames,
+            profileId
         );
         if (tagNames.length > 0 && tagIds.length === 0) {
             return { results: [] };
@@ -518,7 +543,7 @@ class SearchService {
         const results = [];
         let totalCount = 0;
 
-        // Search each entity type
+        // Search each entity type (all scoped to the active profile)
         if (filterTypes.includes('Task')) {
             const taskResults = await this.searchTasks(
                 userId,
@@ -527,7 +552,8 @@ class SearchService {
                 dueDateCondition,
                 deferDateCondition,
                 nowDate,
-                timezone
+                timezone,
+                profileId
             );
             results.push(...taskResults.results);
             totalCount += taskResults.count;
@@ -538,26 +564,36 @@ class SearchService {
                 userId,
                 params,
                 tagIds,
-                dueDateCondition
+                dueDateCondition,
+                profileId
             );
             results.push(...projectResults.results);
             totalCount += projectResults.count;
         }
 
         if (filterTypes.includes('Area')) {
-            const areaResults = await this.searchAreas(userId, params);
+            const areaResults = await this.searchAreas(
+                userId,
+                params,
+                profileId
+            );
             results.push(...areaResults.results);
             totalCount += areaResults.count;
         }
 
         if (filterTypes.includes('Note')) {
-            const noteResults = await this.searchNotes(userId, params, tagIds);
+            const noteResults = await this.searchNotes(
+                userId,
+                params,
+                tagIds,
+                profileId
+            );
             results.push(...noteResults.results);
             totalCount += noteResults.count;
         }
 
         if (filterTypes.includes('Tag')) {
-            const tagResults = await this.searchTags(userId, params);
+            const tagResults = await this.searchTags(userId, params, profileId);
             results.push(...tagResults.results);
             totalCount += tagResults.count;
         }

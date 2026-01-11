@@ -198,7 +198,12 @@ const updateUserChatId = async (userId, chatId) => {
 };
 
 // Side effect function to create inbox item
-const createInboxItem = async (content, userId, messageId) => {
+const createInboxItem = async (
+    content,
+    userId,
+    messageId,
+    profileId = null
+) => {
     // Check if a similar item was created recently (within last 30 seconds)
     // to prevent duplicates from network issues or multiple processing
     const recentCutoff = new Date(Date.now() - 30000); // 30 seconds ago
@@ -225,6 +230,7 @@ const createInboxItem = async (content, userId, messageId) => {
         content: content,
         source: 'telegram',
         user_id: userId,
+        profile_id: profileId, // Use user's active profile
         metadata: { telegram_message_id: messageId }, // Store message ID for reference
     });
 };
@@ -376,7 +382,8 @@ const processMessage = async (user, update) => {
         }
 
         // Create inbox item for regular messages (with duplicate check)
-        await createInboxItem(text, user.id, messageId);
+        // Use the user's active profile so items go to the correct workspace
+        await createInboxItem(text, user.id, messageId, user.active_profile_id);
 
         // Send confirmation
         await sendTelegramMessage(

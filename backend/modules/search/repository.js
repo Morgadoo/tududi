@@ -5,16 +5,22 @@ const { Op } = require('sequelize');
 
 class SearchRepository {
     /**
-     * Find tag IDs by names for a user.
+     * Find tag IDs by names for a user (optionally scoped to profile).
      */
-    async findTagIdsByNames(userId, tagNames) {
+    async findTagIdsByNames(userId, tagNames, profileId = null) {
         if (tagNames.length === 0) return [];
 
+        const where = {
+            user_id: userId,
+            name: { [Op.in]: tagNames },
+        };
+
+        if (profileId) {
+            where.profile_id = profileId;
+        }
+
         const tags = await Tag.findAll({
-            where: {
-                user_id: userId,
-                name: { [Op.in]: tagNames },
-            },
+            where,
             attributes: ['id'],
         });
         return tags.map((tag) => tag.id);

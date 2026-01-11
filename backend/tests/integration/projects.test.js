@@ -1,7 +1,7 @@
 const request = require('supertest');
 const app = require('../../app');
-const { Project, User, Area, Task, Note } = require('../../models');
-const { createTestUser } = require('../helpers/testUtils');
+const { Project, User, Area, Task, Note, Profile } = require('../../models');
+const { createTestUser, createTestProfile } = require('../helpers/testUtils');
 
 describe('Projects Routes', () => {
     let user, area, agent;
@@ -551,6 +551,130 @@ describe('Projects Routes', () => {
             expect(orphanedNote.project_id).toBeNull();
             expect(orphanedNote.title).toBe('Note with project');
             expect(orphanedNote.content).toBe('This note belongs to a project');
+        });
+    });
+
+    describe('Profile Isolation', () => {
+        let workProfile, personalProfile;
+
+        beforeEach(async () => {
+            workProfile = await createTestProfile(user, { name: 'Work' });
+            personalProfile = await createTestProfile(user, {
+                name: 'Personal',
+            });
+            await user.update({ active_profile_id: workProfile.id });
+        });
+
+        it('should only return projects from active profile', async () => {
+            await Project.create({
+                name: 'Work Project',
+                user_id: user.id,
+                profile_id: workProfile.id,
+            });
+            await Project.create({
+                name: 'Personal Project',
+                user_id: user.id,
+                profile_id: personalProfile.id,
+            });
+
+            const response = await agent.get('/api/projects');
+
+            expect(response.status).toBe(200);
+            expect(response.body.projects.length).toBe(1);
+            expect(response.body.projects[0].name).toBe('Work Project');
+        });
+
+        it('should create projects in active profile', async () => {
+            const response = await agent.post('/api/project').send({
+                name: 'New Project',
+            });
+
+            expect(response.status).toBe(201);
+
+            const project = await Project.findOne({
+                where: { uid: response.body.uid },
+            });
+            expect(project.profile_id).toBe(workProfile.id);
+        });
+
+        it('should see different projects after profile switch', async () => {
+            await Project.create({
+                name: 'Work Project',
+                user_id: user.id,
+                profile_id: workProfile.id,
+            });
+            await Project.create({
+                name: 'Personal Project',
+                user_id: user.id,
+                profile_id: personalProfile.id,
+            });
+
+            // Get projects from work profile
+            let response = await agent.get('/api/projects');
+            expect(response.body.projects.length).toBe(1);
+            expect(response.body.projects[0].name).toBe('Work Project');
+
+            // Switch to personal profile
+            await agent.patch(`/api/v1/profiles/switch/${personalProfile.uid}`);
+
+            // Get projects from personal profile
+            response = await agent.get('/api/projects');
+            expect(response.body.projects.length).toBe(1);
+            expect(response.body.projects[0].name).toBe('Personal Project');
+        });
+
+        it('should allow access to projects from other profiles via direct uid (user owns all profiles)', async () => {
+            // Design decision: Profile is a filter for lists, but direct UID access
+            // works across profiles since the user owns all their data
+            const personalProject = await Project.create({
+                name: 'Personal Project',
+                user_id: user.id,
+                profile_id: personalProfile.id,
+            });
+
+            // Access personal project while in work profile - should succeed
+            const response = await agent.get(
+                `/api/project/${personalProject.uid}`
+            );
+
+            expect(response.status).toBe(200);
+            expect(response.body.name).toBe('Personal Project');
+        });
+
+        it('should allow updating projects from other profiles (user owns all profiles)', async () => {
+            const personalProject = await Project.create({
+                name: 'Personal Project',
+                user_id: user.id,
+                profile_id: personalProfile.id,
+            });
+
+            const response = await agent
+                .patch(`/api/project/${personalProject.uid}`)
+                .send({ name: 'Updated Name' });
+
+            expect(response.status).toBe(200);
+
+            // Verify project was updated
+            await personalProject.reload();
+            expect(personalProject.name).toBe('Updated Name');
+        });
+
+        it('should allow deleting projects from other profiles (user owns all profiles)', async () => {
+            const personalProject = await Project.create({
+                name: 'Personal Project',
+                user_id: user.id,
+                profile_id: personalProfile.id,
+            });
+
+            const response = await agent.delete(
+                `/api/project/${personalProject.uid}`
+            );
+
+            expect(response.status).toBe(200);
+
+            // Verify project was deleted
+            const deleted = await Project.findByPk(personalProject.id);
+            expect(deleted).toBeNull();
         });
     });
 });

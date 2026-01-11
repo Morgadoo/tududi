@@ -19,18 +19,22 @@ beforeEach(async () => {
     // Clean all tables except Sessions to avoid conflicts
     try {
         // Use raw SQL for faster cleanup
+        // Note: Order matters due to foreign key constraints
+        // profiles must be deleted after users but before other tables that reference it
         const tableNames = [
-            'users',
-            'areas',
-            'projects',
-            'tasks',
-            'tags',
-            'notes',
-            'inbox_items',
-            'task_events',
             'tasks_tags',
             'notes_tags',
             'projects_tags',
+            'task_events',
+            'inbox_items',
+            'notes',
+            'tasks',
+            'tags',
+            'projects',
+            'areas',
+            'views',
+            'profiles',
+            'users',
         ];
 
         await sequelize.query('PRAGMA foreign_keys = OFF');

@@ -1,7 +1,7 @@
 const request = require('supertest');
 const app = require('../../app');
-const { Tag, User } = require('../../models');
-const { createTestUser } = require('../helpers/testUtils');
+const { Tag, User, Profile } = require('../../models');
+const { createTestUser, createTestProfile } = require('../helpers/testUtils');
 
 describe('Tags Routes', () => {
     let user, agent;
@@ -449,6 +449,129 @@ describe('Tags Routes', () => {
 
             expect(response.status).toBe(401);
             expect(response.body.error).toBe('Authentication required');
+        });
+    });
+
+    describe('Profile Isolation', () => {
+        let workProfile, personalProfile;
+
+        beforeEach(async () => {
+            workProfile = await createTestProfile(user, { name: 'Work' });
+            personalProfile = await createTestProfile(user, {
+                name: 'Personal',
+            });
+            await user.update({ active_profile_id: workProfile.id });
+        });
+
+        it('should only return tags from active profile', async () => {
+            await Tag.create({
+                name: 'work-tag',
+                user_id: user.id,
+                profile_id: workProfile.id,
+            });
+            await Tag.create({
+                name: 'personal-tag',
+                user_id: user.id,
+                profile_id: personalProfile.id,
+            });
+
+            const response = await agent.get('/api/tags');
+
+            expect(response.status).toBe(200);
+            expect(response.body.length).toBe(1);
+            expect(response.body[0].name).toBe('work-tag');
+        });
+
+        it('should create tags in active profile', async () => {
+            const response = await agent.post('/api/tag').send({
+                name: 'new-tag',
+            });
+
+            expect(response.status).toBe(201);
+
+            // Find the tag by uid from response
+            const tag = await Tag.findOne({
+                where: { uid: response.body.uid },
+            });
+            expect(tag).not.toBeNull();
+            expect(tag.profile_id).toBe(workProfile.id);
+        });
+
+        // NOTE: This test documents current behavior where same tag names
+        // across profiles are NOT allowed due to legacy unique constraint.
+        // A migration is needed to remove the (user_id, name) unique constraint
+        // and keep only (user_id, profile_id, name) to enable profile-scoped tags.
+        it('should prevent duplicate tag names across profiles (legacy behavior)', async () => {
+            // Create 'urgent' in work profile
+            await agent.post('/api/tag').send({ name: 'urgent' });
+
+            // Switch to personal profile
+            await agent.patch(`/api/v1/profiles/switch/${personalProfile.uid}`);
+
+            // Create 'urgent' in personal profile - currently fails due to legacy constraint
+            const response = await agent.post('/api/tag').send({
+                name: 'urgent',
+            });
+
+            // Current behavior: 409 Conflict due to (user_id, name) unique constraint
+            // Future behavior after migration: should be 201 Created
+            expect(response.status).toBe(409);
+        });
+
+        it('should see different tags after profile switch', async () => {
+            await Tag.create({
+                name: 'work-tag',
+                user_id: user.id,
+                profile_id: workProfile.id,
+            });
+            await Tag.create({
+                name: 'personal-tag',
+                user_id: user.id,
+                profile_id: personalProfile.id,
+            });
+
+            // Get tags from work profile
+            let response = await agent.get('/api/tags');
+            expect(response.body.length).toBe(1);
+            expect(response.body[0].name).toBe('work-tag');
+
+            // Switch to personal profile
+            await agent.patch(`/api/v1/profiles/switch/${personalProfile.uid}`);
+
+            // Get tags from personal profile
+            response = await agent.get('/api/tags');
+            expect(response.body.length).toBe(1);
+            expect(response.body[0].name).toBe('personal-tag');
+        });
+
+        it('should not delete tags from other profiles', async () => {
+            const personalTag = await Tag.create({
+                name: 'personal-tag',
+                user_id: user.id,
+                profile_id: personalProfile.id,
+            });
+
+            const response = await agent.delete(`/api/tag/${personalTag.uid}`);
+
+            expect(response.status).toBe(404);
+
+            // Verify tag still exists
+            const stillExists = await Tag.findByPk(personalTag.id);
+            expect(stillExists).not.toBeNull();
+        });
+
+        it('should prevent duplicate tag names within same profile', async () => {
+            await Tag.create({
+                name: 'existing',
+                user_id: user.id,
+                profile_id: workProfile.id,
+            });
+
+            const response = await agent.post('/api/tag').send({
+                name: 'existing',
+            });
+
+            expect(response.status).toBe(409);
         });
     });
 });

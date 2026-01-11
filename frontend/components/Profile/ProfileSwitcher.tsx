@@ -52,9 +52,9 @@ const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
             await switchProfile(profileUid);
             setIsOpen(false);
             // Navigate to today page after switching
+            // The switchProfile action already resets all stores which will
+            // trigger components to reload their data with the new profile context
             navigate('/today');
-            // Force page reload to refresh all data
-            window.location.reload();
         } catch (error) {
             console.error('Failed to switch profile:', error);
         }

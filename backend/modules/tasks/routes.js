@@ -382,7 +382,7 @@ router.post('/task', async (req, res) => {
         }
 
         const task = await taskRepository.create(taskAttributes);
-        await updateTaskTags(task, tagsData, req.currentUser.id);
+        await updateTaskTags(task, tagsData, req.currentUser.id, profileId);
         await createSubtasks(task.id, subtasks, req.currentUser.id);
 
         const taskWithAssociations = await taskRepository.findById(task.id, {
@@ -480,6 +480,7 @@ router.patch('/task/:uid', requireTaskWriteAccess, async (req, res) => {
         } = req.body;
 
         const tagsData = tags || Tags;
+        const profileId = req.activeProfileId;
 
         const task = await taskRepository.findByUid(req.params.uid, {
             include: TASK_INCLUDES_WITH_SUBTASKS,
@@ -721,7 +722,7 @@ router.patch('/task/:uid', requireTaskWriteAccess, async (req, res) => {
             }
         }
 
-        await updateTaskTags(task, tagsData, req.currentUser.id);
+        await updateTaskTags(task, tagsData, req.currentUser.id, profileId);
         await updateSubtasks(task.id, subtasks, req.currentUser.id);
         await logTaskChanges(
             task,
