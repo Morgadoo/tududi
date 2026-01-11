@@ -17,6 +17,7 @@ import {
     CheckIcon,
     BellIcon,
     CommandLineIcon,
+    UserGroupIcon,
 } from '@heroicons/react/24/outline';
 import TelegramIcon from '../Shared/Icons/TelegramIcon';
 import { useToast } from '../Shared/ToastContext';
@@ -44,6 +45,7 @@ import TelegramTab from './tabs/TelegramTab';
 import AiTab from './tabs/AiTab';
 import NotificationsTab from './tabs/NotificationsTab';
 import KeyboardShortcutsTab from './tabs/KeyboardShortcutsTab';
+import ProfilesTab from './tabs/ProfilesTab';
 import { getDefaultConfig } from '../../utils/keyboardShortcutsService';
 import type {
     ProfileSettingsProps,
@@ -81,6 +83,7 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({
         const section = params.get('section');
         const validTabs = [
             'general',
+            'profiles',
             'security',
             'api-keys',
             'productivity',
@@ -1093,6 +1096,11 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({
             icon: <UserIcon className="w-5 h-5" />,
         },
         {
+            id: 'profiles',
+            name: t('profile.tabs.profiles', 'Profiles'),
+            icon: <UserGroupIcon className="w-5 h-5" />,
+        },
+        {
             id: 'security',
             name: t('profile.tabs.security', 'Security'),
             icon: <ShieldCheckIcon className="w-5 h-5" />,
@@ -1193,6 +1201,10 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({
                                     onAvatarRemove={handleAvatarRemove}
                                     timezonesByRegion={timezonesByRegion}
                                     getRegionDisplayName={getRegionDisplayName}
+                                />
+
+                                <ProfilesTab
+                                    isActive={activeTab === 'profiles'}
                                 />
 
                                 <SecurityTab
@@ -1308,7 +1320,9 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({
                                 />
 
                                 <KeyboardShortcutsTab
-                                    isActive={activeTab === 'keyboard-shortcuts'}
+                                    isActive={
+                                        activeTab === 'keyboard-shortcuts'
+                                    }
                                     config={formData.keyboard_shortcuts}
                                     onChange={(config) =>
                                         setFormData((prev) => ({

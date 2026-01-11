@@ -67,7 +67,7 @@ const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
 
     const handleManageProfiles = () => {
         setIsOpen(false);
-        navigate('/profile/profiles');
+        navigate('/profile?section=profiles');
     };
 
     if (!activeProfile) {

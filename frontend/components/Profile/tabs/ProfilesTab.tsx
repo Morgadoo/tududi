@@ -1,21 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
-import { useStore } from '../../store/useStore';
-import { useToast } from '../Shared/ToastContext';
-import ProfileIcon from './ProfileIcon';
-import ConfirmDialog from '../Shared/ConfirmDialog';
+import { useStore } from '../../../store/useStore';
+import { useToast } from '../../Shared/ToastContext';
+import ProfileIcon from '../ProfileIcon';
+import ConfirmDialog from '../../Shared/ConfirmDialog';
 import {
     PlusIcon,
     PencilIcon,
     TrashIcon,
     CheckIcon,
-    XMarkIcon,
-    ArrowLeftIcon,
-    ExclamationTriangleIcon,
+    UserGroupIcon,
 } from '@heroicons/react/24/outline';
-import { PROFILE_ICONS, DEFAULT_PROFILE_COLORS } from '../../entities/Profile';
-import type { Profile } from '../../entities/Profile';
+import {
+    PROFILE_ICONS,
+    DEFAULT_PROFILE_COLORS,
+} from '../../../entities/Profile';
+import type { Profile } from '../../../entities/Profile';
+
+interface ProfilesTabProps {
+    isActive: boolean;
+}
 
 interface EditingProfile {
     uid: string | null;
@@ -24,9 +28,8 @@ interface EditingProfile {
     color: string;
 }
 
-const ProfilesManagement: React.FC = () => {
+const ProfilesTab: React.FC<ProfilesTabProps> = ({ isActive }) => {
     const { t } = useTranslation();
-    const navigate = useNavigate();
     const { showSuccessToast, showErrorToast } = useToast();
 
     const {
@@ -57,10 +60,12 @@ const ProfilesManagement: React.FC = () => {
     const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
-        if (!hasLoaded) {
+        if (isActive && !hasLoaded) {
             loadProfiles();
         }
-    }, [hasLoaded, loadProfiles]);
+    }, [isActive, hasLoaded, loadProfiles]);
+
+    if (!isActive) return null;
 
     const handleCreateProfile = async () => {
         if (!newProfile.name.trim()) {
@@ -155,6 +160,7 @@ const ProfilesManagement: React.FC = () => {
             icon: profile.icon,
             color: profile.color,
         });
+        setIsCreating(false);
     };
 
     const cancelEditing = () => {
@@ -165,13 +171,13 @@ const ProfilesManagement: React.FC = () => {
         selectedIcon: string,
         onSelect: (icon: string) => void
     ) => (
-        <div className="grid grid-cols-8 gap-2">
+        <div className="grid grid-cols-8 gap-1.5">
             {PROFILE_ICONS.map((icon) => (
                 <button
                     key={icon}
                     type="button"
                     onClick={() => onSelect(icon)}
-                    className={`p-2 rounded-lg border-2 transition-colors ${
+                    className={`p-1.5 rounded border transition-colors ${
                         selectedIcon === icon
                             ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
                             : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
@@ -187,13 +193,13 @@ const ProfilesManagement: React.FC = () => {
         selectedColor: string,
         onSelect: (color: string) => void
     ) => (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1.5">
             {DEFAULT_PROFILE_COLORS.map((color) => (
                 <button
                     key={color}
                     type="button"
                     onClick={() => onSelect(color)}
-                    className={`w-8 h-8 rounded-full border-2 transition-all ${
+                    className={`w-6 h-6 rounded-full border-2 transition-all ${
                         selectedColor === color
                             ? 'border-gray-900 dark:border-white scale-110'
                             : 'border-transparent hover:scale-105'
@@ -211,7 +217,7 @@ const ProfilesManagement: React.FC = () => {
         onCancel: () => void,
         isNew: boolean
     ) => (
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-4">
+        <div className="border border-gray-200 dark:border-gray-700 rounded-md p-4 space-y-4 bg-gray-50 dark:bg-gray-800/50">
             <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     {t('profiles.name', 'Name')}
@@ -226,7 +232,7 @@ const ProfilesManagement: React.FC = () => {
                         'profiles.namePlaceholder',
                         'e.g., Work, Personal'
                     )}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
                     autoFocus
                 />
             </div>
@@ -249,56 +255,48 @@ const ProfilesManagement: React.FC = () => {
                 )}
             </div>
 
-            <div className="flex items-center gap-3 pt-2">
+            <div className="flex items-center justify-between pt-2">
                 <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                     <span>{t('profiles.preview', 'Preview')}:</span>
                     <ProfileIcon
                         icon={profile.icon}
                         color={profile.color}
-                        size="md"
+                        size="sm"
                     />
                     <span className="font-medium text-gray-900 dark:text-white">
                         {profile.name || t('profiles.untitled', 'Untitled')}
                     </span>
                 </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-                <button
-                    type="button"
-                    onClick={onCancel}
-                    disabled={isSaving}
-                    className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                >
-                    {t('common.cancel', 'Cancel')}
-                </button>
-                <button
-                    type="button"
-                    onClick={onSave}
-                    disabled={isSaving || !profile.name.trim()}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-                >
-                    {isSaving ? (
-                        <>
-                            <span className="animate-spin">...</span>
-                            {t('common.saving', 'Saving...')}
-                        </>
-                    ) : (
-                        <>
-                            <CheckIcon className="w-4 h-4" />
-                            {isNew
-                                ? t('profiles.create', 'Create Profile')
-                                : t('common.save', 'Save')}
-                        </>
-                    )}
-                </button>
+                <div className="flex gap-2">
+                    <button
+                        type="button"
+                        onClick={onCancel}
+                        disabled={isSaving}
+                        className="px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
+                    >
+                        {t('common.cancel', 'Cancel')}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onSave}
+                        disabled={isSaving || !profile.name.trim()}
+                        className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                    >
+                        <CheckIcon className="w-4 h-4" />
+                        {isSaving
+                            ? t('common.saving', 'Saving...')
+                            : isNew
+                              ? t('profiles.create', 'Create')
+                              : t('common.save', 'Save')}
+                    </button>
+                </div>
             </div>
         </div>
     );
 
     if (isLoading && !hasLoaded) {
         return (
-            <div className="flex items-center justify-center h-64">
+            <div className="flex items-center justify-center py-12">
                 <div className="text-gray-500 dark:text-gray-400">
                     {t('common.loading', 'Loading...')}
                 </div>
@@ -307,45 +305,35 @@ const ProfilesManagement: React.FC = () => {
     }
 
     return (
-        <div className="w-full p-4 sm:p-6 max-w-4xl mx-auto">
-            {/* Header */}
-            <div className="flex items-center gap-4 mb-6">
-                <button
-                    onClick={() => navigate(-1)}
-                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-                >
-                    <ArrowLeftIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-                </button>
-                <div>
-                    <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-                        {t('profiles.manage', 'Manage Profiles')}
-                    </h1>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        {t(
-                            'profiles.description',
-                            'Profiles help you organize your tasks into separate workspaces like Work and Personal.'
-                        )}
-                    </p>
-                </div>
-            </div>
+        <div>
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2 flex items-center">
+                <UserGroupIcon className="w-6 h-6 mr-3 text-blue-500" />
+                {t('profiles.manage', 'Manage Profiles')}
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                {t(
+                    'profiles.description',
+                    'Profiles help you organize your tasks into separate workspaces like Work and Personal.'
+                )}
+            </p>
 
-            {/* Active Profile Banner */}
+            {/* Active Profile */}
             {activeProfile && (
-                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
+                <div className="mb-6 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
                     <div className="flex items-center gap-3">
                         <ProfileIcon
                             icon={activeProfile.icon}
                             color={activeProfile.color}
-                            size="md"
+                            size="sm"
                         />
                         <div>
-                            <p className="text-sm text-blue-600 dark:text-blue-400">
+                            <p className="text-xs text-blue-600 dark:text-blue-400">
                                 {t(
                                     'profiles.currentProfile',
                                     'Current Profile'
                                 )}
                             </p>
-                            <p className="font-medium text-gray-900 dark:text-white">
+                            <p className="font-medium text-gray-900 dark:text-white text-sm">
                                 {activeProfile.name}
                             </p>
                         </div>
@@ -354,7 +342,7 @@ const ProfilesManagement: React.FC = () => {
             )}
 
             {/* Profiles List */}
-            <div className="space-y-3">
+            <div className="space-y-2">
                 {profiles.map((profile) => (
                     <div key={profile.uid}>
                         {editingProfile?.uid === profile.uid ? (
@@ -366,49 +354,57 @@ const ProfilesManagement: React.FC = () => {
                                 false
                             )
                         ) : (
-                            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between">
+                            <div className="border border-gray-200 dark:border-gray-700 rounded-md p-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                                 <div className="flex items-center gap-3">
                                     <ProfileIcon
                                         icon={profile.icon}
                                         color={profile.color}
-                                        size="md"
+                                        size="sm"
                                     />
                                     <div>
-                                        <p className="font-medium text-gray-900 dark:text-white">
+                                        <p className="font-medium text-gray-900 dark:text-white text-sm">
                                             {profile.name}
                                         </p>
-                                        {profile.isDefault && (
-                                            <span className="text-xs text-gray-500 dark:text-gray-400">
-                                                {t(
-                                                    'profiles.default',
-                                                    'Default'
-                                                )}
-                                            </span>
-                                        )}
-                                        {activeProfile?.uid === profile.uid && (
-                                            <span className="text-xs text-blue-600 dark:text-blue-400 ml-2">
-                                                {t('profiles.active', 'Active')}
-                                            </span>
-                                        )}
+                                        <div className="flex items-center gap-2">
+                                            {profile.isDefault && (
+                                                <span className="text-xs text-gray-500 dark:text-gray-400">
+                                                    {t(
+                                                        'profiles.default',
+                                                        'Default'
+                                                    )}
+                                                </span>
+                                            )}
+                                            {activeProfile?.uid ===
+                                                profile.uid && (
+                                                <span className="text-xs text-blue-600 dark:text-blue-400">
+                                                    {t(
+                                                        'profiles.active',
+                                                        'Active'
+                                                    )}
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1">
                                     <button
+                                        type="button"
                                         onClick={() => startEditing(profile)}
-                                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                                        className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
                                         title={t('common.edit', 'Edit')}
                                     >
-                                        <PencilIcon className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                                        <PencilIcon className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                                     </button>
                                     {profiles.length > 1 && (
                                         <button
+                                            type="button"
                                             onClick={() =>
                                                 setProfileToDelete(profile)
                                             }
-                                            className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                            className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
                                             title={t('common.delete', 'Delete')}
                                         >
-                                            <TrashIcon className="w-4 h-4 text-red-600 dark:text-red-400" />
+                                            <TrashIcon className="w-4 h-4 text-red-500 dark:text-red-400" />
                                         </button>
                                     )}
                                 </div>
@@ -436,11 +432,15 @@ const ProfilesManagement: React.FC = () => {
                     )
                 ) : (
                     <button
-                        onClick={() => setIsCreating(true)}
+                        type="button"
+                        onClick={() => {
+                            setIsCreating(true);
+                            setEditingProfile(null);
+                        }}
                         disabled={profiles.length >= 10}
-                        className="w-full p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-colors flex items-center justify-center gap-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-gray-300 disabled:hover:bg-transparent disabled:hover:text-gray-600"
+                        className="w-full p-3 border border-dashed border-gray-300 dark:border-gray-600 rounded-md hover:border-blue-500 dark:hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-colors flex items-center justify-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-gray-300 disabled:hover:bg-transparent disabled:hover:text-gray-600"
                     >
-                        <PlusIcon className="w-5 h-5" />
+                        <PlusIcon className="w-4 h-4" />
                         {profiles.length >= 10
                             ? t(
                                   'profiles.maxReached',
@@ -451,23 +451,13 @@ const ProfilesManagement: React.FC = () => {
                 )}
             </div>
 
-            {/* Info Box */}
-            <div className="mt-6 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
-                <div className="flex gap-3">
-                    <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-                    <div className="text-sm text-amber-800 dark:text-amber-200">
-                        <p className="font-medium mb-1">
-                            {t('profiles.warning', 'Important')}
-                        </p>
-                        <p>
-                            {t(
-                                'profiles.warningText',
-                                'Deleting a profile will permanently delete all tasks, projects, notes, and other data within that profile. This action cannot be undone.'
-                            )}
-                        </p>
-                    </div>
-                </div>
-            </div>
+            {/* Warning */}
+            <p className="mt-4 text-xs text-gray-500 dark:text-gray-400">
+                {t(
+                    'profiles.warningText',
+                    'Deleting a profile will permanently delete all tasks, projects, notes, and other data within that profile.'
+                )}
+            </p>
 
             {/* Delete Confirmation Dialog */}
             {profileToDelete && (
@@ -491,4 +481,4 @@ const ProfilesManagement: React.FC = () => {
     );
 };
 
-export default ProfilesManagement;
+export default ProfilesTab;

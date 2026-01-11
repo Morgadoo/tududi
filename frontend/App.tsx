@@ -16,7 +16,6 @@ import Notes from './components/Notes';
 import NoteDetails from './components/Note/NoteDetails';
 import Calendar from './components/Calendar';
 import ProfileSettings from './components/Profile/ProfileSettings';
-import ProfilesManagement from './components/Profile/ProfilesManagement';
 import About from './components/About';
 import BackupRestore from './components/Backup/BackupRestore';
 import Layout from './Layout';
@@ -264,10 +263,6 @@ const App: React.FC = () => {
                                         toggleDarkMode={toggleDarkMode}
                                     />
                                 }
-                            />
-                            <Route
-                                path="/profile/profiles"
-                                element={<ProfilesManagement />}
                             />
                             <Route
                                 path="/about"
