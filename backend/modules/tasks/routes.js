@@ -78,6 +78,12 @@ const {
     handleRecurrenceUpdate,
     calculateNextIterations,
 } = require('./operations/recurring');
+const {
+    updateParentRecurrence,
+    createFinalValueResolver,
+    calculateRecurrenceAdvancement,
+    createRecurringCompletionWithEvent,
+} = require('./operations/task-update-helpers');
 
 const { getTaskMetrics } = require('./queries/metrics-computation');
 
@@ -453,23 +459,8 @@ router.get('/task/:uid', requireTaskReadAccess, async (req, res) => {
 
 router.patch('/task/:uid', requireTaskWriteAccess, async (req, res) => {
     try {
-        const {
-            status,
-            project_id,
-            parent_task_id,
-            tags,
-            Tags,
-            subtasks,
-            recurrence_type,
-            recurrence_interval,
-            recurrence_end_date,
-            recurrence_weekday,
-            recurrence_month_day,
-            recurrence_week_of_month,
-            completion_based,
-            update_parent_recurrence,
-        } = req.body;
-
+        const { status, project_id, parent_task_id, tags, Tags, subtasks } =
+            req.body;
         const tagsData = tags || Tags;
 
         const task = await taskRepository.findByUid(req.params.uid, {
@@ -483,59 +474,23 @@ router.patch('/task/:uid', requireTaskWriteAccess, async (req, res) => {
         const oldValues = captureOldValues(task);
         const oldStatus = task.status;
 
-        if (update_parent_recurrence && task.recurring_parent_id) {
-            const parentTask = await taskRepository.findByIdAndUser(
-                task.recurring_parent_id,
-                req.currentUser.id
-            );
-
-            if (parentTask) {
-                await parentTask.update({
-                    recurrence_type:
-                        recurrence_type !== undefined
-                            ? recurrence_type
-                            : parentTask.recurrence_type,
-                    recurrence_interval:
-                        recurrence_interval !== undefined
-                            ? recurrence_interval
-                            : parentTask.recurrence_interval,
-                    recurrence_end_date:
-                        recurrence_end_date !== undefined
-                            ? recurrence_end_date
-                            : parentTask.recurrence_end_date,
-                    recurrence_weekday:
-                        recurrence_weekday !== undefined
-                            ? recurrence_weekday
-                            : parentTask.recurrence_weekday,
-                    recurrence_month_day:
-                        recurrence_month_day !== undefined
-                            ? recurrence_month_day
-                            : parentTask.recurrence_month_day,
-                    recurrence_week_of_month:
-                        recurrence_week_of_month !== undefined
-                            ? recurrence_week_of_month
-                            : parentTask.recurrence_week_of_month,
-                    completion_based:
-                        completion_based !== undefined
-                            ? completion_based
-                            : parentTask.completion_based,
-                });
-            }
-        }
+        // Update parent task's recurrence if requested
+        await updateParentRecurrence(task, req.body, req.currentUser.id);
 
         const timezone = getSafeTimezone(req.currentUser.timezone);
         const taskAttributes = buildUpdateAttributes(req.body, task, timezone);
 
-        try {
-            const finalDeferUntil =
-                taskAttributes.defer_until !== undefined
-                    ? taskAttributes.defer_until
-                    : task.defer_until;
-            const finalDueDate =
-                taskAttributes.due_date !== undefined
-                    ? taskAttributes.due_date
-                    : task.due_date;
+        // Validate defer until and due date
+        const finalDeferUntil =
+            taskAttributes.defer_until !== undefined
+                ? taskAttributes.defer_until
+                : task.defer_until;
+        const finalDueDate =
+            taskAttributes.due_date !== undefined
+                ? taskAttributes.due_date
+                : task.due_date;
 
+        try {
             validateDeferUntilAndDueDate(finalDeferUntil, finalDueDate);
         } catch (error) {
             return res.status(400).json({ error: error.message });
@@ -543,28 +498,27 @@ router.patch('/task/:uid', requireTaskWriteAccess, async (req, res) => {
 
         await handleCompletionStatus(taskAttributes, status, task);
 
+        // Validate and set project_id
         if (project_id !== undefined) {
             try {
-                const validProjectId = await validateProjectAccess(
+                taskAttributes.project_id = await validateProjectAccess(
                     project_id,
                     req.currentUser.id
                 );
-                taskAttributes.project_id = validProjectId;
             } catch (error) {
-                return res
-                    .status(error.message === 'Forbidden' ? 403 : 400)
-                    .json({ error: error.message });
+                const statusCode = error.message === 'Forbidden' ? 403 : 400;
+                return res.status(statusCode).json({ error: error.message });
             }
         }
 
+        // Validate and set parent_task_id
         if (parent_task_id !== undefined) {
             if (parent_task_id && parent_task_id.toString().trim()) {
                 try {
-                    const validParentId = await validateParentTaskAccess(
+                    taskAttributes.parent_task_id = await validateParentTaskAccess(
                         parent_task_id,
                         req.currentUser.id
                     );
-                    taskAttributes.parent_task_id = validParentId;
                 } catch (error) {
                     return res.status(400).json({ error: error.message });
                 }
@@ -586,11 +540,8 @@ router.patch('/task/:uid', requireTaskWriteAccess, async (req, res) => {
 
         await handleRecurrenceUpdate(task, recurrenceFields, req.body);
 
-        const resolveFinalValue = (field) =>
-            taskAttributes[field] !== undefined
-                ? taskAttributes[field]
-                : task[field];
-
+        // Calculate recurrence advancement if completing a recurring task
+        const resolveFinalValue = createFinalValueResolver(taskAttributes, task);
         const finalRecurrenceType = resolveFinalValue('recurrence_type');
         const finalCompletionBased = resolveFinalValue('completion_based');
         const finalDueDateBeforeAdvance =
@@ -598,71 +549,16 @@ router.patch('/task/:uid', requireTaskWriteAccess, async (req, res) => {
                 ? taskAttributes.due_date
                 : task.due_date;
 
-        let recurringCompletionPayload = null;
-        let recurrenceAdvanceInfo = null;
-
-        if (
-            status !== undefined &&
-            (taskAttributes.status === Task.STATUS.DONE ||
-                taskAttributes.status === 'done') &&
-            finalRecurrenceType &&
-            finalRecurrenceType !== 'none' &&
-            !task.recurring_parent_id
-        ) {
-            const completedAt = new Date();
-            const hasOriginalDueDate =
-                finalDueDateBeforeAdvance !== undefined &&
-                finalDueDateBeforeAdvance !== null &&
-                finalDueDateBeforeAdvance !== '';
-            const originalDueDate = hasOriginalDueDate
-                ? new Date(finalDueDateBeforeAdvance)
-                : new Date(completedAt);
-            const recurrenceContext = {
-                ...(typeof task.get === 'function'
-                    ? task.get({ plain: true })
-                    : task),
-                recurrence_type: finalRecurrenceType,
-                recurrence_interval: resolveFinalValue('recurrence_interval'),
-                recurrence_end_date: resolveFinalValue('recurrence_end_date'),
-                recurrence_weekday: resolveFinalValue('recurrence_weekday'),
-                recurrence_weekdays: resolveFinalValue('recurrence_weekdays'),
-                recurrence_month_day: resolveFinalValue('recurrence_month_day'),
-                recurrence_week_of_month: resolveFinalValue(
-                    'recurrence_week_of_month'
-                ),
-                completion_based: finalCompletionBased,
-                due_date: originalDueDate,
-            };
-
-            const baseDate = finalCompletionBased
-                ? completedAt
-                : new Date(originalDueDate);
-            const nextDueDate = calculateNextDueDate(
-                recurrenceContext,
-                baseDate
-            );
-
-            recurringCompletionPayload = {
-                task_id: task.id,
-                completed_at: completedAt,
-                original_due_date: new Date(originalDueDate),
-                skipped: false,
-            };
-            recurrenceAdvanceInfo = {
-                originalDueDate: new Date(originalDueDate),
-                completedAt,
-                nextDueDate,
-            };
-
-            if (
-                nextDueDate &&
-                shouldGenerateNextTask(recurrenceContext, nextDueDate)
-            ) {
-                taskAttributes.status = Task.STATUS.NOT_STARTED;
-                taskAttributes.completed_at = null;
-                taskAttributes.due_date = nextDueDate;
-            }
-        }
+        const { recurringCompletionPayload, recurrenceAdvanceInfo } =
+            calculateRecurrenceAdvancement({
+                task,
+                taskAttributes,
+                status,
+                finalRecurrenceType,
+                finalCompletionBased,
+                finalDueDateBeforeAdvance,
+                resolveFinalValue,
+            });
 
         await task.update(taskAttributes);
 
@@ -675,38 +571,14 @@ router.patch('/task/:uid', requireTaskWriteAccess, async (req, res) => {
             );
         }
 
-        if (recurringCompletionPayload) {
-            await RecurringCompletion.create(recurringCompletionPayload);
-            try {
-                await logEvent({
-                    taskId: task.id,
-                    userId: req.currentUser.id,
-                    eventType: 'recurring_occurrence_completed',
-                    fieldName: 'recurrence',
-                    oldValue: recurrenceAdvanceInfo
-                        ? recurrenceAdvanceInfo.originalDueDate
-                        : null,
-                    newValue: recurrenceAdvanceInfo
-                        ? recurrenceAdvanceInfo.nextDueDate
-                        : null,
-                    metadata: {
-                        action: 'recurring_occurrence_completed',
-                        original_due_date:
-                            recurrenceAdvanceInfo?.originalDueDate?.toISOString?.() ??
-                            recurrenceAdvanceInfo?.originalDueDate,
-                        next_due_date:
-                            recurrenceAdvanceInfo?.nextDueDate?.toISOString?.() ??
-                            null,
-                        completion_based: finalCompletionBased,
-                    },
-                });
-            } catch (eventError) {
-                logError(
-                    'Error logging recurring occurrence completion event:',
-                    eventError
-                );
-            }
-        }
+        // Create recurring completion record and log event
+        await createRecurringCompletionWithEvent({
+            recurringCompletionPayload,
+            recurrenceAdvanceInfo,
+            task,
+            userId: req.currentUser.id,
+            finalCompletionBased,
+        });
 
         await updateTaskTags(task, tagsData, req.currentUser.id);
         await updateSubtasks(task.id, subtasks, req.currentUser.id);

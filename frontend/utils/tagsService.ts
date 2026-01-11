@@ -36,7 +36,7 @@ export const createTag = async (tagData: Tag): Promise<Tag> => {
         // Handle authentication errors first
         if (response.status === 401) {
             await handleAuthResponse(response, 'Failed to create tag.');
-            return Promise.reject(new Error('Authentication required'));
+            throw new Error('Authentication required');
         }
 
         // Try to get the specific error message from the response

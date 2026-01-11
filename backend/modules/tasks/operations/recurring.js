@@ -6,6 +6,184 @@ const {
     getSafeTimezone,
 } = require('../../../utils/timezone-utils');
 
+/**
+ * Parse weekdays from task (handles both array and JSON string)
+ */
+function parseWeekdays(recurrence_weekdays) {
+    if (!recurrence_weekdays) return null;
+    return Array.isArray(recurrence_weekdays)
+        ? recurrence_weekdays
+        : JSON.parse(recurrence_weekdays);
+}
+
+/**
+ * Check if today matches a weekly recurrence pattern
+ */
+function checkWeeklyTodayMatch(task, todayWeekday) {
+    if (task.recurrence_weekdays) {
+        const weekdays = parseWeekdays(task.recurrence_weekdays);
+        return weekdays.includes(todayWeekday);
+    }
+
+    if (
+        task.recurrence_weekday !== null &&
+        task.recurrence_weekday !== undefined
+    ) {
+        return task.recurrence_weekday === todayWeekday;
+    }
+
+    return false;
+}
+
+/**
+ * Check if today matches a monthly recurrence pattern
+ */
+function checkMonthlyTodayMatch(task, startDate) {
+    const targetDay =
+        task.recurrence_month_day !== null &&
+        task.recurrence_month_day !== undefined
+            ? task.recurrence_month_day
+            : startDate.getUTCDate();
+    const todayDay = startDate.getUTCDate();
+
+    if (targetDay <= todayDay) {
+        return { matches: false, nextDate: null };
+    }
+
+    const currentMonth = startDate.getUTCMonth();
+    const currentYear = startDate.getUTCFullYear();
+    const maxDayInMonth = new Date(
+        Date.UTC(currentYear, currentMonth + 1, 0)
+    ).getUTCDate();
+
+    if (targetDay > maxDayInMonth) {
+        return { matches: false, nextDate: null };
+    }
+
+    const nextDate = new Date(
+        Date.UTC(
+            currentYear,
+            currentMonth,
+            targetDay,
+            startDate.getUTCHours(),
+            startDate.getUTCMinutes(),
+            startDate.getUTCSeconds(),
+            startDate.getUTCMilliseconds()
+        )
+    );
+
+    return { matches: true, nextDate };
+}
+
+/**
+ * Check if today matches the recurrence pattern
+ */
+function checkTodayMatchesRecurrence(task, startDate) {
+    const nextDate = new Date(startDate);
+
+    switch (task.recurrence_type) {
+        case 'daily':
+            return { matches: true, nextDate };
+        case 'weekly': {
+            const todayWeekday = nextDate.getUTCDay();
+            const matches = checkWeeklyTodayMatch(task, todayWeekday);
+            return { matches, nextDate };
+        }
+        case 'monthly': {
+            return checkMonthlyTodayMatch(task, startDate);
+        }
+        default:
+            return { matches: false, nextDate };
+    }
+}
+
+/**
+ * Calculate the next date for daily recurrence
+ */
+function getNextDailyDate(currentDate, interval) {
+    const nextDate = new Date(currentDate);
+    nextDate.setUTCDate(nextDate.getUTCDate() + (interval || 1));
+    return nextDate;
+}
+
+/**
+ * Calculate the next date for weekly recurrence when today doesn't match
+ */
+function getNextWeeklyDate(currentDate, task) {
+    const nextDate = new Date(currentDate);
+    const interval = task.recurrence_interval || 1;
+
+    if (
+        task.recurrence_weekday !== null &&
+        task.recurrence_weekday !== undefined
+    ) {
+        const currentWeekday = nextDate.getUTCDay();
+        const daysUntilTarget =
+            (task.recurrence_weekday - currentWeekday + 7) % 7;
+
+        if (daysUntilTarget === 0) {
+            nextDate.setUTCDate(nextDate.getUTCDate() + interval * 7);
+        } else {
+            nextDate.setUTCDate(nextDate.getUTCDate() + daysUntilTarget);
+        }
+    } else {
+        nextDate.setUTCDate(nextDate.getUTCDate() + interval * 7);
+    }
+
+    return nextDate;
+}
+
+/**
+ * Find the next matching weekday for multi-day weekly recurrence
+ */
+function findNextMatchingWeekday(currentDate, weekdays) {
+    for (let daysAhead = 1; daysAhead <= 7; daysAhead++) {
+        const testDate = new Date(currentDate);
+        testDate.setUTCDate(testDate.getUTCDate() + daysAhead);
+        const testWeekday = testDate.getUTCDay();
+
+        if (weekdays.includes(testWeekday)) {
+            return testDate;
+        }
+    }
+
+    // Fallback: add 7 days
+    const fallbackDate = new Date(currentDate);
+    fallbackDate.setUTCDate(fallbackDate.getUTCDate() + 7);
+    return fallbackDate;
+}
+
+/**
+ * Advance to the next occurrence based on recurrence type
+ */
+function advanceToNextOccurrence(currentDate, task) {
+    switch (task.recurrence_type) {
+        case 'daily':
+            return getNextDailyDate(currentDate, task.recurrence_interval);
+        case 'weekly': {
+            if (task.recurrence_weekdays) {
+                const weekdays = parseWeekdays(task.recurrence_weekdays);
+                return findNextMatchingWeekday(currentDate, weekdays);
+            }
+            const nextDate = new Date(currentDate);
+            nextDate.setUTCDate(
+                nextDate.getUTCDate() + (task.recurrence_interval || 1) * 7
+            );
+            return nextDate;
+        }
+        default:
+            return calculateNextDueDate(task, currentDate);
+    }
+}
+
+/**
+ * Check if iteration should stop based on end date
+ */
+function shouldStopIteration(nextDate, endDate) {
+    if (!endDate) return false;
+    return nextDate > new Date(endDate);
+}
+
 async function handleRecurrenceUpdate(task, recurrenceFields, reqBody) {
     // Check if recurrence fields changed
     const recurrenceChanged = recurrenceFields.some((field) => {
@@ -70,67 +248,19 @@ async function handleRecurrenceUpdate(task, recurrenceFields, reqBody) {
 
 async function calculateNextIterations(task, startFromDate, userTimezone) {
     const iterations = [];
+    const MAX_ITERATIONS = 6;
 
     const startDate = startFromDate ? new Date(startFromDate) : new Date();
     startDate.setUTCHours(0, 0, 0, 0);
 
-    let nextDate = new Date(startDate);
-    let includesToday = false;
-
     // Check if today matches the recurrence pattern
-    if (task.recurrence_type === 'weekly') {
-        // Check if today matches any of the weekdays
-        if (task.recurrence_weekdays) {
-            // Note: Sequelize getter already parses JSON, so it's already an array
-            const weekdays = Array.isArray(task.recurrence_weekdays)
-                ? task.recurrence_weekdays
-                : JSON.parse(task.recurrence_weekdays);
-            const todayWeekday = nextDate.getUTCDay();
-            console.log('Weekly recurrence check:', {
-                weekdays,
-                todayWeekday,
-                includes: weekdays.includes(todayWeekday),
-            });
-            includesToday = weekdays.includes(todayWeekday);
-        } else if (
-            task.recurrence_weekday !== null &&
-            task.recurrence_weekday !== undefined
-        ) {
-            const todayWeekday = nextDate.getUTCDay();
-            includesToday = task.recurrence_weekday === todayWeekday;
-        }
-    } else if (task.recurrence_type === 'daily') {
-        includesToday = true;
-    } else if (task.recurrence_type === 'monthly') {
-        const targetDay =
-            task.recurrence_month_day !== null &&
-            task.recurrence_month_day !== undefined
-                ? task.recurrence_month_day
-                : startDate.getUTCDate();
-        const todayDay = startDate.getUTCDate();
+    const todayMatch = checkTodayMatchesRecurrence(task, startDate);
+    let nextDate = todayMatch.nextDate || new Date(startDate);
+    const includesToday = todayMatch.matches;
 
-        if (targetDay > todayDay) {
-            const currentMonth = startDate.getUTCMonth();
-            const currentYear = startDate.getUTCFullYear();
-            const maxDayInMonth = new Date(
-                Date.UTC(currentYear, currentMonth + 1, 0)
-            ).getUTCDate();
-
-            if (targetDay <= maxDayInMonth) {
-                includesToday = true;
-                nextDate = new Date(
-                    Date.UTC(
-                        currentYear,
-                        currentMonth,
-                        targetDay,
-                        startDate.getUTCHours(),
-                        startDate.getUTCMinutes(),
-                        startDate.getUTCSeconds(),
-                        startDate.getUTCMilliseconds()
-                    )
-                );
-            }
-        }
+    // If monthly matched, use the calculated nextDate from todayMatch
+    if (task.recurrence_type === 'monthly' && todayMatch.nextDate) {
+        nextDate = todayMatch.nextDate;
     }
 
     console.log('calculateNextIterations:', {
@@ -142,40 +272,13 @@ async function calculateNextIterations(task, startFromDate, userTimezone) {
 
     // If today doesn't match, calculate the next occurrence
     if (!includesToday) {
-        if (task.recurrence_type === 'daily') {
-            nextDate.setUTCDate(
-                nextDate.getUTCDate() + (task.recurrence_interval || 1)
-            );
-        } else if (task.recurrence_type === 'weekly') {
-            const interval = task.recurrence_interval || 1;
-            if (
-                task.recurrence_weekday !== null &&
-                task.recurrence_weekday !== undefined
-            ) {
-                const currentWeekday = nextDate.getUTCDay();
-                const daysUntilTarget =
-                    (task.recurrence_weekday - currentWeekday + 7) % 7;
-                if (daysUntilTarget === 0) {
-                    nextDate.setUTCDate(nextDate.getUTCDate() + interval * 7);
-                } else {
-                    nextDate.setUTCDate(
-                        nextDate.getUTCDate() + daysUntilTarget
-                    );
-                }
-            } else {
-                nextDate.setUTCDate(nextDate.getUTCDate() + interval * 7);
-            }
-        } else {
-            nextDate = calculateNextDueDate(task, startDate);
-        }
+        nextDate = getFirstOccurrence(task, startDate);
     }
 
-    for (let i = 0; i < 6 && nextDate; i++) {
-        if (task.recurrence_end_date) {
-            const endDate = new Date(task.recurrence_end_date);
-            if (nextDate > endDate) {
-                break;
-            }
+    // Generate iterations
+    for (let i = 0; i < MAX_ITERATIONS && nextDate; i++) {
+        if (shouldStopIteration(nextDate, task.recurrence_end_date)) {
+            break;
         }
 
         iterations.push({
@@ -186,51 +289,24 @@ async function calculateNextIterations(task, startFromDate, userTimezone) {
             utc_date: nextDate.toISOString(),
         });
 
-        if (task.recurrence_type === 'daily') {
-            nextDate = new Date(nextDate);
-            nextDate.setUTCDate(
-                nextDate.getUTCDate() + (task.recurrence_interval || 1)
-            );
-        } else if (task.recurrence_type === 'weekly') {
-            nextDate = new Date(nextDate);
-
-            // Handle multiple weekdays
-            if (task.recurrence_weekdays) {
-                // Sequelize getter already parses JSON, so it's already an array
-                const weekdays = Array.isArray(task.recurrence_weekdays)
-                    ? task.recurrence_weekdays
-                    : JSON.parse(task.recurrence_weekdays);
-
-                // Find next matching weekday
-                let found = false;
-                for (let daysAhead = 1; daysAhead <= 7; daysAhead++) {
-                    const testDate = new Date(nextDate);
-                    testDate.setUTCDate(testDate.getUTCDate() + daysAhead);
-                    const testWeekday = testDate.getUTCDay();
-
-                    if (weekdays.includes(testWeekday)) {
-                        nextDate = testDate;
-                        found = true;
-                        break;
-                    }
-                }
-
-                if (!found) {
-                    // Fallback: add 7 days
-                    nextDate.setUTCDate(nextDate.getUTCDate() + 7);
-                }
-            } else {
-                // Old behavior for single weekday
-                nextDate.setUTCDate(
-                    nextDate.getUTCDate() + (task.recurrence_interval || 1) * 7
-                );
-            }
-        } else {
-            nextDate = calculateNextDueDate(task, nextDate);
-        }
+        nextDate = advanceToNextOccurrence(nextDate, task);
     }
 
     return iterations;
+}
+
+/**
+ * Get the first occurrence date when today doesn't match
+ */
+function getFirstOccurrence(task, startDate) {
+    switch (task.recurrence_type) {
+        case 'daily':
+            return getNextDailyDate(startDate, task.recurrence_interval);
+        case 'weekly':
+            return getNextWeeklyDate(startDate, task);
+        default:
+            return calculateNextDueDate(task, startDate);
+    }
 }
 
 module.exports = {

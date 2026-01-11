@@ -80,7 +80,7 @@ const TaskDetails: React.FC = () => {
                               .some(
                                   (node) =>
                                       node instanceof HTMLElement &&
-                                      node.hasAttribute('data-overdue-toggle')
+                                      node.dataset.overdueToggle !== undefined
                               )
                         : target instanceof HTMLElement &&
                           !!target.closest('[data-overdue-toggle]');

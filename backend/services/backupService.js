@@ -236,6 +236,427 @@ async function exportUserData(userId) {
 }
 
 /**
+ * Import a single tag
+ * @private
+ */
+async function importTag(tagData, userId, options, uidToIdMap, transaction) {
+    const existingTag = await Tag.findOne({
+        where: { uid: tagData.uid, user_id: userId },
+        transaction,
+    });
+
+    if (existingTag && options.merge) {
+        uidToIdMap.tags[tagData.uid] = existingTag.id;
+        return { created: false };
+    }
+
+    if (existingTag) {
+        return { created: false };
+    }
+
+    const newTag = await Tag.create(
+        { uid: tagData.uid, name: tagData.name, user_id: userId },
+        { transaction }
+    );
+    uidToIdMap.tags[tagData.uid] = newTag.id;
+    return { created: true };
+}
+
+/**
+ * Import a single area
+ * @private
+ */
+async function importArea(areaData, userId, options, uidToIdMap, transaction) {
+    const existingArea = await Area.findOne({
+        where: { uid: areaData.uid, user_id: userId },
+        transaction,
+    });
+
+    if (existingArea && options.merge) {
+        uidToIdMap.areas[areaData.uid] = existingArea.id;
+        return { created: false };
+    }
+
+    if (existingArea) {
+        return { created: false };
+    }
+
+    const newArea = await Area.create(
+        {
+            uid: areaData.uid,
+            name: areaData.name,
+            description: areaData.description,
+            user_id: userId,
+        },
+        { transaction }
+    );
+    uidToIdMap.areas[areaData.uid] = newArea.id;
+    return { created: true };
+}
+
+/**
+ * Resolve area ID from backup data
+ * @private
+ */
+async function resolveAreaId(areaId, transaction) {
+    if (!areaId) return null;
+    const area = await Area.findOne({ where: { id: areaId }, transaction });
+    return area ? area.id : null;
+}
+
+/**
+ * Resolve project ID from backup data
+ * @private
+ */
+async function resolveProjectId(projectId, transaction) {
+    if (!projectId) return null;
+    const project = await Project.findOne({
+        where: { id: projectId },
+        transaction,
+    });
+    return project ? project.id : null;
+}
+
+/**
+ * Set tags for an entity
+ * @private
+ */
+async function setEntityTags(entity, tagUids, uidToIdMap, transaction) {
+    if (!tagUids || tagUids.length === 0) return;
+
+    const tagIds = tagUids.map((uid) => uidToIdMap.tags[uid]).filter(Boolean);
+    if (tagIds.length > 0) {
+        await entity.setTags(tagIds, { transaction });
+    }
+}
+
+/**
+ * Import a single project
+ * @private
+ */
+async function importProject(
+    projectData,
+    userId,
+    options,
+    uidToIdMap,
+    transaction
+) {
+    const existingProject = await Project.findOne({
+        where: { uid: projectData.uid, user_id: userId },
+        transaction,
+    });
+
+    if (existingProject && options.merge) {
+        uidToIdMap.projects[projectData.uid] = existingProject.id;
+        return { created: false };
+    }
+
+    if (existingProject) {
+        return { created: false };
+    }
+
+    const areaId = await resolveAreaId(projectData.area_id, transaction);
+
+    const newProject = await Project.create(
+        {
+            uid: projectData.uid,
+            name: projectData.name,
+            description: projectData.description,
+            pin_to_sidebar: projectData.pin_to_sidebar,
+            priority: projectData.priority,
+            due_date_at: projectData.due_date_at,
+            image_url: projectData.image_url,
+            task_show_completed: projectData.task_show_completed,
+            task_sort_order: projectData.task_sort_order,
+            status: projectData.status || projectData.state,
+            user_id: userId,
+            area_id: areaId,
+        },
+        { transaction }
+    );
+    uidToIdMap.projects[projectData.uid] = newProject.id;
+
+    await setEntityTags(newProject, projectData.tag_uids, uidToIdMap, transaction);
+
+    return { created: true };
+}
+
+/**
+ * Create recurring completions for a task
+ * @private
+ */
+async function createTaskCompletions(taskId, completions, transaction) {
+    if (!completions || completions.length === 0) return;
+
+    const completionPromises = completions.map((completion) =>
+        RecurringCompletion.create(
+            { task_id: taskId, completion_date: completion.completion_date },
+            { transaction }
+        )
+    );
+    await Promise.all(completionPromises);
+}
+
+/**
+ * Create attachments for a task
+ * @private
+ */
+async function createTaskAttachments(taskId, userId, attachments, transaction) {
+    if (!attachments || attachments.length === 0) return;
+
+    const attachmentPromises = attachments.map((attachment) =>
+        TaskAttachment.create(
+            {
+                task_id: taskId,
+                user_id: userId,
+                file_name: attachment.file_name,
+                file_url: attachment.file_url,
+                file_size: attachment.file_size,
+                file_type: attachment.file_type,
+            },
+            { transaction }
+        )
+    );
+    await Promise.all(attachmentPromises);
+}
+
+/**
+ * Import a single task (first pass - without parent relationships)
+ * @private
+ */
+async function importTask(taskData, userId, options, uidToIdMap, transaction) {
+    const existingTask = await Task.findOne({
+        where: { uid: taskData.uid, user_id: userId },
+        transaction,
+    });
+
+    if (existingTask && options.merge) {
+        uidToIdMap.tasks[taskData.uid] = existingTask.id;
+        return { created: false };
+    }
+
+    if (existingTask) {
+        return { created: false };
+    }
+
+    const projectId = await resolveProjectId(taskData.project_id, transaction);
+
+    const newTask = await Task.create(
+        {
+            uid: taskData.uid,
+            name: taskData.name,
+            due_date: taskData.due_date,
+            defer_until: taskData.defer_until,
+            priority: taskData.priority,
+            status: taskData.status,
+            note: taskData.note,
+            recurrence_type: taskData.recurrence_type,
+            recurrence_interval: taskData.recurrence_interval,
+            recurrence_end_date: taskData.recurrence_end_date,
+            recurrence_weekday: taskData.recurrence_weekday,
+            recurrence_weekdays: taskData.recurrence_weekdays,
+            recurrence_month_day: taskData.recurrence_month_day,
+            recurrence_week_of_month: taskData.recurrence_week_of_month,
+            completion_based: taskData.completion_based,
+            order: taskData.order,
+            completed_at: taskData.completed_at,
+            user_id: userId,
+            project_id: projectId,
+        },
+        { transaction }
+    );
+    uidToIdMap.tasks[taskData.uid] = newTask.id;
+
+    await setEntityTags(newTask, taskData.tag_uids, uidToIdMap, transaction);
+    await createTaskCompletions(newTask.id, taskData.completions, transaction);
+    await createTaskAttachments(
+        newTask.id,
+        userId,
+        taskData.attachments,
+        transaction
+    );
+
+    return { created: true };
+}
+
+/**
+ * Update task parent relationships (second pass)
+ * @private
+ */
+async function updateTaskParentRelationships(
+    taskData,
+    userId,
+    transaction
+) {
+    const hasParentRelation =
+        taskData.parent_task_id || taskData.recurring_parent_id;
+    if (!hasParentRelation) return;
+
+    const task = await Task.findOne({
+        where: { uid: taskData.uid, user_id: userId },
+        transaction,
+    });
+    if (!task) return;
+
+    const updates = {};
+
+    if (taskData.parent_task_id) {
+        const parentTask = await Task.findOne({
+            where: { id: taskData.parent_task_id, user_id: userId },
+            transaction,
+        });
+        if (parentTask) {
+            updates.parent_task_id = parentTask.id;
+        }
+    }
+
+    if (taskData.recurring_parent_id) {
+        const recurringParent = await Task.findOne({
+            where: { id: taskData.recurring_parent_id, user_id: userId },
+            transaction,
+        });
+        if (recurringParent) {
+            updates.recurring_parent_id = recurringParent.id;
+        }
+    }
+
+    if (Object.keys(updates).length > 0) {
+        await task.update(updates, { transaction });
+    }
+}
+
+/**
+ * Import a single note
+ * @private
+ */
+async function importNote(noteData, userId, options, uidToIdMap, transaction) {
+    const existingNote = await Note.findOne({
+        where: { uid: noteData.uid, user_id: userId },
+        transaction,
+    });
+
+    if (existingNote && options.merge) {
+        return { created: false };
+    }
+
+    if (existingNote) {
+        return { created: false };
+    }
+
+    const projectId = await resolveProjectId(noteData.project_id, transaction);
+
+    const newNote = await Note.create(
+        {
+            uid: noteData.uid,
+            title: noteData.title,
+            content: noteData.content,
+            color: noteData.color,
+            user_id: userId,
+            project_id: projectId,
+        },
+        { transaction }
+    );
+
+    await setEntityTags(newNote, noteData.tag_uids, uidToIdMap, transaction);
+
+    return { created: true };
+}
+
+/**
+ * Import a single inbox item
+ * @private
+ */
+async function importInboxItem(inboxData, userId, options, transaction) {
+    const existingInbox = await InboxItem.findOne({
+        where: { uid: inboxData.uid, user_id: userId },
+        transaction,
+    });
+
+    if (existingInbox && options.merge) {
+        return { created: false };
+    }
+
+    if (existingInbox) {
+        return { created: false };
+    }
+
+    await InboxItem.create(
+        {
+            uid: inboxData.uid,
+            name: inboxData.name,
+            content: inboxData.content,
+            status: inboxData.status,
+            user_id: userId,
+        },
+        { transaction }
+    );
+
+    return { created: true };
+}
+
+/**
+ * Import a single view
+ * @private
+ */
+async function importView(viewData, userId, options, transaction) {
+    const existingView = await View.findOne({
+        where: { uid: viewData.uid, user_id: userId },
+        transaction,
+    });
+
+    if (existingView && options.merge) {
+        return { created: false };
+    }
+
+    if (existingView) {
+        return { created: false };
+    }
+
+    await View.create(
+        {
+            uid: viewData.uid,
+            name: viewData.name,
+            search_query: viewData.search_query,
+            filters: viewData.filters,
+            priority: viewData.priority,
+            due: viewData.due,
+            defer: viewData.defer,
+            tags: viewData.tags,
+            extras: viewData.extras,
+            recurring: viewData.recurring,
+            is_pinned: viewData.is_pinned,
+            user_id: userId,
+        },
+        { transaction }
+    );
+
+    return { created: true };
+}
+
+/**
+ * Import entities of a specific type
+ * @private
+ */
+async function importEntities(
+    items,
+    importFn,
+    stats,
+    statKey,
+    ...extraArgs
+) {
+    if (!items) return;
+
+    for (const item of items) {
+        const result = await importFn(item, ...extraArgs);
+        if (result.created) {
+            stats[statKey].created++;
+        } else {
+            stats[statKey].skipped++;
+        }
+    }
+}
+
+/**
  * Import and restore user data from a backup
  * @param {number} userId - The user ID to import data for
  * @param {object} backupData - The backup data to import
@@ -247,12 +668,10 @@ async function importUserData(userId, backupData, options = { merge: true }) {
     const transaction = await sequelize.transaction();
 
     try {
-        // Validate backup data structure
         if (!backupData.version || !backupData.data) {
             throw new Error('Invalid backup data format');
         }
 
-        // Verify user exists
         const user = await User.findByPk(userId);
         if (!user) {
             throw new Error('User not found');
@@ -268,7 +687,6 @@ async function importUserData(userId, backupData, options = { merge: true }) {
             views: { created: 0, skipped: 0 },
         };
 
-        // Map to track old UIDs to new IDs for foreign key relationships
         const uidToIdMap = {
             areas: {},
             projects: {},
@@ -277,368 +695,94 @@ async function importUserData(userId, backupData, options = { merge: true }) {
             notes: {},
         };
 
-        // Import tags first (no dependencies)
-        if (backupData.data.tags) {
-            for (const tagData of backupData.data.tags) {
-                const existingTag = await Tag.findOne({
-                    where: { uid: tagData.uid, user_id: userId },
-                    transaction,
-                });
+        const { data } = backupData;
 
-                if (existingTag && options.merge) {
-                    stats.tags.skipped++;
-                    uidToIdMap.tags[tagData.uid] = existingTag.id;
-                } else if (!existingTag) {
-                    const newTag = await Tag.create(
-                        {
-                            uid: tagData.uid,
-                            name: tagData.name,
-                            user_id: userId,
-                        },
-                        { transaction }
-                    );
-                    stats.tags.created++;
-                    uidToIdMap.tags[tagData.uid] = newTag.id;
-                }
+        // Import in dependency order
+        await importEntities(
+            data.tags,
+            importTag,
+            stats,
+            'tags',
+            userId,
+            options,
+            uidToIdMap,
+            transaction
+        );
+
+        await importEntities(
+            data.areas,
+            importArea,
+            stats,
+            'areas',
+            userId,
+            options,
+            uidToIdMap,
+            transaction
+        );
+
+        await importEntities(
+            data.projects,
+            importProject,
+            stats,
+            'projects',
+            userId,
+            options,
+            uidToIdMap,
+            transaction
+        );
+
+        await importEntities(
+            data.tasks,
+            importTask,
+            stats,
+            'tasks',
+            userId,
+            options,
+            uidToIdMap,
+            transaction
+        );
+
+        // Second pass: update task parent relationships
+        if (data.tasks) {
+            for (const taskData of data.tasks) {
+                await updateTaskParentRelationships(
+                    taskData,
+                    userId,
+                    transaction
+                );
             }
         }
 
-        // Import areas (no dependencies except user)
-        if (backupData.data.areas) {
-            for (const areaData of backupData.data.areas) {
-                const existingArea = await Area.findOne({
-                    where: { uid: areaData.uid, user_id: userId },
-                    transaction,
-                });
+        await importEntities(
+            data.notes,
+            importNote,
+            stats,
+            'notes',
+            userId,
+            options,
+            uidToIdMap,
+            transaction
+        );
 
-                if (existingArea && options.merge) {
-                    stats.areas.skipped++;
-                    uidToIdMap.areas[areaData.uid] = existingArea.id;
-                } else if (!existingArea) {
-                    const newArea = await Area.create(
-                        {
-                            uid: areaData.uid,
-                            name: areaData.name,
-                            description: areaData.description,
-                            user_id: userId,
-                        },
-                        { transaction }
-                    );
-                    stats.areas.created++;
-                    uidToIdMap.areas[areaData.uid] = newArea.id;
-                }
-            }
-        }
+        await importEntities(
+            data.inbox_items,
+            importInboxItem,
+            stats,
+            'inbox_items',
+            userId,
+            options,
+            transaction
+        );
 
-        // Import projects (depends on areas)
-        if (backupData.data.projects) {
-            for (const projectData of backupData.data.projects) {
-                const existingProject = await Project.findOne({
-                    where: { uid: projectData.uid, user_id: userId },
-                    transaction,
-                });
-
-                if (existingProject && options.merge) {
-                    stats.projects.skipped++;
-                    uidToIdMap.projects[projectData.uid] = existingProject.id;
-                } else if (!existingProject) {
-                    // Map area_id if it exists
-                    let areaId = null;
-                    if (projectData.area_id) {
-                        const area = await Area.findOne({
-                            where: { id: projectData.area_id },
-                            transaction,
-                        });
-                        areaId = area ? area.id : null;
-                    }
-
-                    const newProject = await Project.create(
-                        {
-                            uid: projectData.uid,
-                            name: projectData.name,
-                            description: projectData.description,
-                            pin_to_sidebar: projectData.pin_to_sidebar,
-                            priority: projectData.priority,
-                            due_date_at: projectData.due_date_at,
-                            image_url: projectData.image_url,
-                            task_show_completed:
-                                projectData.task_show_completed,
-                            task_sort_order: projectData.task_sort_order,
-                            status: projectData.status || projectData.state,
-                            user_id: userId,
-                            area_id: areaId,
-                        },
-                        { transaction }
-                    );
-                    stats.projects.created++;
-                    uidToIdMap.projects[projectData.uid] = newProject.id;
-
-                    // Create project-tag relationships
-                    if (
-                        projectData.tag_uids &&
-                        projectData.tag_uids.length > 0
-                    ) {
-                        const tagIds = projectData.tag_uids
-                            .map((uid) => uidToIdMap.tags[uid])
-                            .filter(Boolean);
-                        if (tagIds.length > 0) {
-                            await newProject.setTags(tagIds, { transaction });
-                        }
-                    }
-                }
-            }
-        }
-
-        // Import tasks (depends on projects, and self-referential)
-        // First pass: create all tasks without parent/recurring relationships
-        if (backupData.data.tasks) {
-            for (const taskData of backupData.data.tasks) {
-                const existingTask = await Task.findOne({
-                    where: { uid: taskData.uid, user_id: userId },
-                    transaction,
-                });
-
-                if (existingTask && options.merge) {
-                    stats.tasks.skipped++;
-                    uidToIdMap.tasks[taskData.uid] = existingTask.id;
-                } else if (!existingTask) {
-                    // Map project_id if it exists
-                    let projectId = null;
-                    if (taskData.project_id) {
-                        const project = await Project.findOne({
-                            where: { id: taskData.project_id },
-                            transaction,
-                        });
-                        projectId = project ? project.id : null;
-                    }
-
-                    const newTask = await Task.create(
-                        {
-                            uid: taskData.uid,
-                            name: taskData.name,
-                            due_date: taskData.due_date,
-                            defer_until: taskData.defer_until,
-                            priority: taskData.priority,
-                            status: taskData.status,
-                            note: taskData.note,
-                            recurrence_type: taskData.recurrence_type,
-                            recurrence_interval: taskData.recurrence_interval,
-                            recurrence_end_date: taskData.recurrence_end_date,
-                            recurrence_weekday: taskData.recurrence_weekday,
-                            recurrence_weekdays: taskData.recurrence_weekdays,
-                            recurrence_month_day: taskData.recurrence_month_day,
-                            recurrence_week_of_month:
-                                taskData.recurrence_week_of_month,
-                            completion_based: taskData.completion_based,
-                            order: taskData.order,
-                            completed_at: taskData.completed_at,
-                            user_id: userId,
-                            project_id: projectId,
-                        },
-                        { transaction }
-                    );
-                    stats.tasks.created++;
-                    uidToIdMap.tasks[taskData.uid] = newTask.id;
-
-                    // Create task-tag relationships
-                    if (taskData.tag_uids && taskData.tag_uids.length > 0) {
-                        const tagIds = taskData.tag_uids
-                            .map((uid) => uidToIdMap.tags[uid])
-                            .filter(Boolean);
-                        if (tagIds.length > 0) {
-                            await newTask.setTags(tagIds, { transaction });
-                        }
-                    }
-
-                    // Create recurring completions
-                    if (
-                        taskData.completions &&
-                        taskData.completions.length > 0
-                    ) {
-                        for (const completion of taskData.completions) {
-                            await RecurringCompletion.create(
-                                {
-                                    task_id: newTask.id,
-                                    completion_date: completion.completion_date,
-                                },
-                                { transaction }
-                            );
-                        }
-                    }
-
-                    // Create task attachments
-                    if (
-                        taskData.attachments &&
-                        taskData.attachments.length > 0
-                    ) {
-                        for (const attachment of taskData.attachments) {
-                            await TaskAttachment.create(
-                                {
-                                    task_id: newTask.id,
-                                    user_id: userId,
-                                    file_name: attachment.file_name,
-                                    file_url: attachment.file_url,
-                                    file_size: attachment.file_size,
-                                    file_type: attachment.file_type,
-                                },
-                                { transaction }
-                            );
-                        }
-                    }
-                }
-            }
-
-            // Second pass: update parent_task_id and recurring_parent_id
-            for (const taskData of backupData.data.tasks) {
-                if (taskData.parent_task_id || taskData.recurring_parent_id) {
-                    const task = await Task.findOne({
-                        where: { uid: taskData.uid, user_id: userId },
-                        transaction,
-                    });
-
-                    if (task) {
-                        const updates = {};
-
-                        if (taskData.parent_task_id) {
-                            const parentTask = await Task.findOne({
-                                where: {
-                                    id: taskData.parent_task_id,
-                                    user_id: userId,
-                                },
-                                transaction,
-                            });
-                            if (parentTask) {
-                                updates.parent_task_id = parentTask.id;
-                            }
-                        }
-
-                        if (taskData.recurring_parent_id) {
-                            const recurringParent = await Task.findOne({
-                                where: {
-                                    id: taskData.recurring_parent_id,
-                                    user_id: userId,
-                                },
-                                transaction,
-                            });
-                            if (recurringParent) {
-                                updates.recurring_parent_id =
-                                    recurringParent.id;
-                            }
-                        }
-
-                        if (Object.keys(updates).length > 0) {
-                            await task.update(updates, { transaction });
-                        }
-                    }
-                }
-            }
-        }
-
-        // Import notes (depends on projects)
-        if (backupData.data.notes) {
-            for (const noteData of backupData.data.notes) {
-                const existingNote = await Note.findOne({
-                    where: { uid: noteData.uid, user_id: userId },
-                    transaction,
-                });
-
-                if (existingNote && options.merge) {
-                    stats.notes.skipped++;
-                } else if (!existingNote) {
-                    // Map project_id if it exists
-                    let projectId = null;
-                    if (noteData.project_id) {
-                        const project = await Project.findOne({
-                            where: { id: noteData.project_id },
-                            transaction,
-                        });
-                        projectId = project ? project.id : null;
-                    }
-
-                    const newNote = await Note.create(
-                        {
-                            uid: noteData.uid,
-                            title: noteData.title,
-                            content: noteData.content,
-                            color: noteData.color,
-                            user_id: userId,
-                            project_id: projectId,
-                        },
-                        { transaction }
-                    );
-                    stats.notes.created++;
-
-                    // Create note-tag relationships
-                    if (noteData.tag_uids && noteData.tag_uids.length > 0) {
-                        const tagIds = noteData.tag_uids
-                            .map((uid) => uidToIdMap.tags[uid])
-                            .filter(Boolean);
-                        if (tagIds.length > 0) {
-                            await newNote.setTags(tagIds, { transaction });
-                        }
-                    }
-                }
-            }
-        }
-
-        // Import inbox items
-        if (backupData.data.inbox_items) {
-            for (const inboxData of backupData.data.inbox_items) {
-                const existingInbox = await InboxItem.findOne({
-                    where: { uid: inboxData.uid, user_id: userId },
-                    transaction,
-                });
-
-                if (existingInbox && options.merge) {
-                    stats.inbox_items.skipped++;
-                } else if (!existingInbox) {
-                    await InboxItem.create(
-                        {
-                            uid: inboxData.uid,
-                            name: inboxData.name,
-                            content: inboxData.content,
-                            status: inboxData.status,
-                            user_id: userId,
-                        },
-                        { transaction }
-                    );
-                    stats.inbox_items.created++;
-                }
-            }
-        }
-
-        // Import views
-        if (backupData.data.views) {
-            for (const viewData of backupData.data.views) {
-                const existingView = await View.findOne({
-                    where: { uid: viewData.uid, user_id: userId },
-                    transaction,
-                });
-
-                if (existingView && options.merge) {
-                    stats.views.skipped++;
-                } else if (!existingView) {
-                    await View.create(
-                        {
-                            uid: viewData.uid,
-                            name: viewData.name,
-                            search_query: viewData.search_query,
-                            filters: viewData.filters,
-                            priority: viewData.priority,
-                            due: viewData.due,
-                            defer: viewData.defer,
-                            tags: viewData.tags,
-                            extras: viewData.extras,
-                            recurring: viewData.recurring,
-                            is_pinned: viewData.is_pinned,
-                            user_id: userId,
-                        },
-                        { transaction }
-                    );
-                    stats.views.created++;
-                }
-            }
-        }
+        await importEntities(
+            data.views,
+            importView,
+            stats,
+            'views',
+            userId,
+            options,
+            transaction
+        );
 
         await transaction.commit();
         return stats;
