@@ -19,7 +19,7 @@ const { logError } = require('../../services/logService');
  * Returns project.id if valid, null if clearing, or throws error.
  */
 async function resolveProjectForUpdate(projectUid, projectId, userId) {
-    const projectIdentifier = projectUid !== undefined ? projectUid : projectId;
+    const projectIdentifier = projectUid === undefined ? projectId : projectUid;
 
     // If explicitly clearing project
     if (projectIdentifier === undefined) return undefined;

@@ -27,7 +27,7 @@ async function getAccessViaProject(projectId, userId, getAccessFn) {
     if (!project) return null;
 
     const projectAccess = await getAccessFn(userId, 'project', project.uid);
-    return projectAccess !== ACCESS.NONE ? projectAccess : null;
+    return projectAccess === ACCESS.NONE ? null : projectAccess;
 }
 
 // Check ownership for a resource type
@@ -88,20 +88,6 @@ async function ownershipOrPermissionWhere(resourceType, userId, cache = null) {
     const cacheKey = `permission_${resourceType}_${userId}`;
     if (cache && cache.has(cacheKey)) {
         return cache.get(cacheKey);
-    }
-
-    // Build WHERE clause for resource queries based on ownership and sharing permissions
-    // Note: isAdmin expects a UID, but we might receive a numeric ID
-    // Get the user's UID if we received a numeric ID
-    let userUid = userId;
-    if (typeof userId === 'number' || !isNaN(parseInt(userId))) {
-        const { User } = require('../models');
-        const user = await User.findByPk(userId, {
-            attributes: ['uid', 'email'],
-        });
-        if (user) {
-            userUid = user.uid;
-        }
     }
 
     // Admin users should NOT see all resources automatically
