@@ -6,7 +6,7 @@
  */
 
 require('dotenv').config();
-const { sequelize } = require('../models');
+const { sequelize, User } = require('../models');
 
 async function initDatabase() {
     try {
@@ -19,6 +19,34 @@ async function initDatabase() {
         console.log(
             'All tables have been created and existing data has been cleared'
         );
+
+        // Create initial admin user from environment variables
+        const adminEmail = process.env.TUDUDI_USER_EMAIL;
+        const adminPassword = process.env.TUDUDI_USER_PASSWORD;
+
+        if (adminEmail && adminPassword) {
+            console.log('\nCreating initial admin user...');
+            const adminUser = await User.create({
+                email: adminEmail,
+                password: adminPassword,
+                name: 'Admin',
+                email_verified: true,
+            });
+
+            console.log('✅ Admin user created successfully');
+            console.log(`   Email: ${adminEmail}`);
+            console.log(
+                '   Note: This user will automatically be assigned admin role'
+            );
+        } else {
+            console.warn(
+                '\n⚠️  Warning: TUDUDI_USER_EMAIL or TUDUDI_USER_PASSWORD not set in .env'
+            );
+            console.warn(
+                '   No initial admin user was created. You can create one later using npm run user:create'
+            );
+        }
+
         process.exit(0);
     } catch (error) {
         console.error('❌ Error initializing database:', error.message);
