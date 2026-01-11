@@ -26,7 +26,7 @@ interface InboxItemDetailProps {
     item: InboxItem;
     onDelete: (uid: string) => void;
     onUpdate?: (uid: string, newContent: string) => Promise<void>;
-    openTaskModal: (task: Task, inboxItemUid?: string) => void;
+    openTaskModal: (task: Task, inboxItemUid?: string) => Promise<void>;
     openProjectModal: (project: Project | null, inboxItemUid?: string) => void;
     openNoteModal: (note: Note | null, inboxItemUid?: string) => void;
     projects: Project[];

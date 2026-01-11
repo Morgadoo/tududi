@@ -57,7 +57,7 @@ interface QuickCaptureInputProps {
     renderFooterActions?: (
         context: InboxComposerFooterContext
     ) => React.ReactNode;
-    openTaskModal?: (task: Task, inboxItemUid?: string) => void;
+    openTaskModal?: (task: Task, inboxItemUid?: string) => Promise<void>;
     openProjectModal?: (project: Project | null, inboxItemUid?: string) => void;
     openNoteModal?: (note: Note | null, inboxItemUid?: string) => void;
     cardClassName?: string;
