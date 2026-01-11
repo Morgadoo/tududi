@@ -344,19 +344,14 @@ describe('Backup Routes', () => {
                         'backup.json'
                     );
 
-                // Should either fail or use the user's own profile
-                if (response.status === 200) {
-                    // If import succeeded, verify data went to user's profile, not other user's
-                    const task = await Task.findOne({
-                        where: { name: 'Malicious Task' },
-                    });
-                    if (task) {
-                        expect(task.profile_id).not.toBe(otherProfile.id);
-                    }
-                } else {
-                    // Can be 400 (validation), 403 (forbidden), or 500 (error)
-                    expect([400, 403, 500]).toContain(response.status);
-                }
+                // Should reject import to another user's profile
+                expect(response.status).toBe(400);
+
+                // Verify no task was created with the malicious data
+                const task = await Task.findOne({
+                    where: { name: 'Malicious Task' },
+                });
+                expect(task).toBeNull();
             });
         });
     });

@@ -59,6 +59,13 @@ module.exports = (sequelize) => {
                     fields: ['user_id', 'is_default'],
                 },
             ],
+            hooks: {
+                beforeUpdate: (profile) => {
+                    if (profile.changed('uid')) {
+                        throw new Error('Cannot update uid after creation');
+                    }
+                },
+            },
         }
     );
 

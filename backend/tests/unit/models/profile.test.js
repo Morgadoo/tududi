@@ -241,16 +241,12 @@ describe('Profile Model', () => {
         it('should not allow updating uid', async () => {
             const originalUid = profile.uid;
 
-            // Depending on model configuration, this might throw or be ignored
-            try {
-                await profile.update({ uid: 'newuid12345' });
-                await profile.reload();
-                // If it didn't throw, uid should remain unchanged
-                expect(profile.uid).toBe(originalUid);
-            } catch (error) {
-                // Expected behavior if uid is immutable
-                expect(error).toBeDefined();
-            }
+            await expect(
+                profile.update({ uid: 'newuid12345' })
+            ).rejects.toThrow('Cannot update uid after creation');
+
+            await profile.reload();
+            expect(profile.uid).toBe(originalUid);
         });
     });
 

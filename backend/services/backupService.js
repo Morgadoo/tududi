@@ -14,6 +14,7 @@ const {
     TaskAttachment,
     Backup,
 } = require('../models');
+const { ValidationError } = require('../shared/errors');
 const fs = require('fs').promises;
 const path = require('path');
 const zlib = require('zlib');
@@ -299,7 +300,7 @@ async function importUserData(
                 transaction,
             });
             if (!profile || profile.user_id !== userId) {
-                throw new Error('Invalid target profile');
+                throw new ValidationError('Invalid target profile');
             }
         }
 
