@@ -15,6 +15,46 @@ const { sortTags } = require('../tasks/core/serializers');
 const { logError } = require('../../services/logService');
 
 /**
+ * Resolve project from uid or id and check write permissions.
+ * Returns project.id if valid, null if clearing, or throws error.
+ */
+async function resolveProjectForUpdate(projectUid, projectId, userId) {
+    const projectIdentifier = projectUid !== undefined ? projectUid : projectId;
+
+    // If explicitly clearing project
+    if (projectIdentifier === undefined) return undefined;
+    if (!projectIdentifier || !projectIdentifier.toString().trim()) return null;
+
+    // Find project by uid or id
+    let project;
+    if (projectUid !== undefined && typeof projectUid === 'string') {
+        project = await Project.findOne({ where: { uid: projectUid.trim() } });
+    } else if (projectId !== undefined) {
+        project = await Project.findByPk(projectId);
+    }
+
+    if (!project) {
+        throw new ValidationError('Invalid project.');
+    }
+
+    // Check permissions
+    const projectAccess = await permissionsService.getAccess(
+        userId,
+        'project',
+        project.uid
+    );
+    const isOwner = project.user_id === userId;
+    const canWrite =
+        isOwner || projectAccess === 'rw' || projectAccess === 'admin';
+
+    if (!canWrite) {
+        throw new ForbiddenError('Forbidden');
+    }
+
+    return project.id;
+}
+
+/**
  * Serialize a note with sorted tags.
  */
 function serializeNote(note) {
@@ -232,48 +272,13 @@ class NotesService {
         if (color !== undefined) updateData.color = color;
 
         // Handle project assignment
-        const projectIdentifier =
-            project_uid !== undefined ? project_uid : project_id;
-
-        if (projectIdentifier !== undefined) {
-            if (projectIdentifier && projectIdentifier.toString().trim()) {
-                let project;
-
-                if (
-                    project_uid !== undefined &&
-                    typeof project_uid === 'string'
-                ) {
-                    const projectUidValue = project_uid.trim();
-                    project = await Project.findOne({
-                        where: { uid: projectUidValue },
-                    });
-                } else if (project_id !== undefined) {
-                    project = await Project.findByPk(project_id);
-                }
-
-                if (!project) {
-                    throw new ValidationError('Invalid project.');
-                }
-
-                const projectAccess = await permissionsService.getAccess(
-                    userId,
-                    'project',
-                    project.uid
-                );
-                const isOwner = project.user_id === userId;
-                const canWrite =
-                    isOwner ||
-                    projectAccess === 'rw' ||
-                    projectAccess === 'admin';
-
-                if (!canWrite) {
-                    throw new ForbiddenError('Forbidden');
-                }
-
-                updateData.project_id = project.id;
-            } else {
-                updateData.project_id = null;
-            }
+        const resolvedProjectId = await resolveProjectForUpdate(
+            project_uid,
+            project_id,
+            userId
+        );
+        if (resolvedProjectId !== undefined) {
+            updateData.project_id = resolvedProjectId;
         }
 
         await notesRepository.update(note, updateData);

@@ -23,6 +23,37 @@ const { logError } = require('../../services/logService');
 const fs = require('fs').promises;
 const path = require('path');
 
+// Fields that can be directly copied from data to allowedUpdates
+const SIMPLE_PROFILE_FIELDS = [
+    'name',
+    'surname',
+    'appearance',
+    'language',
+    'timezone',
+    'avatar_image',
+    'telegram_bot_token',
+    'telegram_allowed_users',
+    'task_intelligence_enabled',
+    'task_summary_enabled',
+    'task_summary_frequency',
+    'auto_suggest_next_actions_enabled',
+    'productivity_assistant_enabled',
+    'next_task_suggestion_enabled',
+    'pomodoro_enabled',
+    'ui_settings',
+    'notification_preferences',
+    'keyboard_shortcuts',
+];
+
+// Copy allowed fields from source to target if defined
+function copyDefinedFields(source, target, fields) {
+    for (const field of fields) {
+        if (source[field] !== undefined) {
+            target[field] = source[field];
+        }
+    }
+}
+
 class UsersService {
     /**
      * List all users with roles.
@@ -80,76 +111,23 @@ class UsersService {
             throw new NotFoundError('Profile not found.');
         }
 
-        const {
-            name,
-            surname,
-            appearance,
-            language,
-            timezone,
-            first_day_of_week,
-            avatar_image,
-            telegram_bot_token,
-            telegram_allowed_users,
-            task_intelligence_enabled,
-            task_summary_enabled,
-            task_summary_frequency,
-            auto_suggest_next_actions_enabled,
-            productivity_assistant_enabled,
-            next_task_suggestion_enabled,
-            pomodoro_enabled,
-            ui_settings,
-            notification_preferences,
-            keyboard_shortcuts,
-            currentPassword,
-            newPassword,
-        } = data;
-
         const allowedUpdates = {};
-        if (name !== undefined) allowedUpdates.name = name;
-        if (surname !== undefined) allowedUpdates.surname = surname;
-        if (appearance !== undefined) allowedUpdates.appearance = appearance;
-        if (language !== undefined) allowedUpdates.language = language;
-        if (timezone !== undefined) allowedUpdates.timezone = timezone;
-        if (first_day_of_week !== undefined) {
-            validateFirstDayOfWeek(first_day_of_week);
-            allowedUpdates.first_day_of_week = first_day_of_week;
+
+        // Copy simple fields
+        copyDefinedFields(data, allowedUpdates, SIMPLE_PROFILE_FIELDS);
+
+        // Handle first_day_of_week with validation
+        if (data.first_day_of_week !== undefined) {
+            validateFirstDayOfWeek(data.first_day_of_week);
+            allowedUpdates.first_day_of_week = data.first_day_of_week;
         }
-        if (avatar_image !== undefined)
-            allowedUpdates.avatar_image = avatar_image;
-        if (telegram_bot_token !== undefined)
-            allowedUpdates.telegram_bot_token = telegram_bot_token;
-        if (telegram_allowed_users !== undefined)
-            allowedUpdates.telegram_allowed_users = telegram_allowed_users;
-        if (task_intelligence_enabled !== undefined)
-            allowedUpdates.task_intelligence_enabled =
-                task_intelligence_enabled;
-        if (task_summary_enabled !== undefined)
-            allowedUpdates.task_summary_enabled = task_summary_enabled;
-        if (task_summary_frequency !== undefined)
-            allowedUpdates.task_summary_frequency = task_summary_frequency;
-        if (auto_suggest_next_actions_enabled !== undefined)
-            allowedUpdates.auto_suggest_next_actions_enabled =
-                auto_suggest_next_actions_enabled;
-        if (productivity_assistant_enabled !== undefined)
-            allowedUpdates.productivity_assistant_enabled =
-                productivity_assistant_enabled;
-        if (next_task_suggestion_enabled !== undefined)
-            allowedUpdates.next_task_suggestion_enabled =
-                next_task_suggestion_enabled;
-        if (pomodoro_enabled !== undefined)
-            allowedUpdates.pomodoro_enabled = pomodoro_enabled;
-        if (ui_settings !== undefined) allowedUpdates.ui_settings = ui_settings;
-        if (notification_preferences !== undefined)
-            allowedUpdates.notification_preferences = notification_preferences;
-        if (keyboard_shortcuts !== undefined)
-            allowedUpdates.keyboard_shortcuts = keyboard_shortcuts;
 
         // Handle password change if provided
-        if (currentPassword && newPassword) {
-            validatePassword(newPassword, 'newPassword');
+        if (data.currentPassword && data.newPassword) {
+            validatePassword(data.newPassword, 'newPassword');
 
             const isValidPassword = await User.checkPassword(
-                currentPassword,
+                data.currentPassword,
                 user.password_digest
             );
             if (!isValidPassword) {
@@ -159,7 +137,7 @@ class UsersService {
                 );
             }
 
-            const hashedNewPassword = await User.hashPassword(newPassword);
+            const hashedNewPassword = await User.hashPassword(data.newPassword);
             allowedUpdates.password_digest = hashedNewPassword;
         }
 

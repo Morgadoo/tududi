@@ -8,6 +8,69 @@ const { parseSearchParams, priorityToInt } = require('./validation');
 const { serializeTasks } = require('../tasks/core/serializers');
 const { UnauthorizedError } = require('../../shared/errors');
 
+// Helper to apply recurring filter to conditions
+function applyRecurringFilter(conditions, recurring, Op) {
+    if (!recurring) return;
+
+    switch (recurring) {
+        case 'recurring':
+            conditions.recurrence_type = { [Op.ne]: 'none' };
+            conditions.recurring_parent_id = null;
+            break;
+        case 'non_recurring':
+            conditions[Op.or] = [
+                { recurrence_type: 'none' },
+                { recurrence_type: null },
+            ];
+            conditions.recurring_parent_id = null;
+            break;
+        case 'instances':
+            conditions.recurring_parent_id = { [Op.ne]: null };
+            break;
+    }
+}
+
+// Helper to build extra conditions based on extras set
+function buildExtraConditions(extras, nowDate, sequelize, Op) {
+    const extraConditions = [];
+
+    if (extras.has('recurring')) {
+        extraConditions.push({
+            [Op.or]: [
+                { recurrence_type: { [Op.ne]: 'none' } },
+                { recurring_parent_id: { [Op.ne]: null } },
+            ],
+        });
+    }
+
+    if (extras.has('overdue')) {
+        extraConditions.push({ due_date: { [Op.lt]: nowDate } });
+        extraConditions.push({ completed_at: null });
+    }
+
+    if (extras.has('has_content')) {
+        extraConditions.push(
+            sequelize.where(
+                sequelize.fn(
+                    'LENGTH',
+                    sequelize.fn('TRIM', sequelize.col('Task.note'))
+                ),
+                { [Op.gt]: 0 }
+            )
+        );
+    }
+
+    if (extras.has('deferred')) {
+        extraConditions.push({ defer_until: { [Op.gt]: nowDate } });
+    }
+
+    if (extras.has('assigned_to_project')) {
+        extraConditions.push({ project_id: { [Op.ne]: null } });
+    }
+
+    return extraConditions;
+}
+
 class SearchService {
     /**
      * Build date range condition for due/defer filters.
@@ -59,7 +122,6 @@ class SearchService {
             params;
 
         const conditions = { user_id: userId };
-        const extraConditions = [];
 
         if (excludeSubtasks) {
             conditions.parent_task_id = null;
@@ -71,15 +133,11 @@ class SearchService {
             conditions[Op.or] = [
                 sequelize.where(
                     sequelize.fn('LOWER', sequelize.col('Task.name')),
-                    {
-                        [Op.like]: `%${lowerQuery}%`,
-                    }
+                    { [Op.like]: `%${lowerQuery}%` }
                 ),
                 sequelize.where(
                     sequelize.fn('LOWER', sequelize.col('Task.note')),
-                    {
-                        [Op.like]: `%${lowerQuery}%`,
-                    }
+                    { [Op.like]: `%${lowerQuery}%` }
                 ),
             ];
         }
@@ -91,66 +149,19 @@ class SearchService {
             }
         }
 
-        if (dueDateCondition) {
-            extraConditions.push(dueDateCondition);
-        }
+        // Apply recurring filter
+        applyRecurringFilter(conditions, recurring, Op);
 
-        if (deferDateCondition) {
-            extraConditions.push(deferDateCondition);
-        }
+        // Build extra conditions
+        const extraConditions = buildExtraConditions(
+            extras,
+            nowDate,
+            sequelize,
+            Op
+        );
 
-        if (recurring) {
-            switch (recurring) {
-                case 'recurring':
-                    conditions.recurrence_type = { [Op.ne]: 'none' };
-                    conditions.recurring_parent_id = null;
-                    break;
-                case 'non_recurring':
-                    conditions[Op.or] = [
-                        { recurrence_type: 'none' },
-                        { recurrence_type: null },
-                    ];
-                    conditions.recurring_parent_id = null;
-                    break;
-                case 'instances':
-                    conditions.recurring_parent_id = { [Op.ne]: null };
-                    break;
-            }
-        }
-
-        if (extras.has('recurring')) {
-            extraConditions.push({
-                [Op.or]: [
-                    { recurrence_type: { [Op.ne]: 'none' } },
-                    { recurring_parent_id: { [Op.ne]: null } },
-                ],
-            });
-        }
-
-        if (extras.has('overdue')) {
-            extraConditions.push({ due_date: { [Op.lt]: nowDate } });
-            extraConditions.push({ completed_at: null });
-        }
-
-        if (extras.has('has_content')) {
-            extraConditions.push(
-                sequelize.where(
-                    sequelize.fn(
-                        'LENGTH',
-                        sequelize.fn('TRIM', sequelize.col('Task.note'))
-                    ),
-                    { [Op.gt]: 0 }
-                )
-            );
-        }
-
-        if (extras.has('deferred')) {
-            extraConditions.push({ defer_until: { [Op.gt]: nowDate } });
-        }
-
-        if (extras.has('assigned_to_project')) {
-            extraConditions.push({ project_id: { [Op.ne]: null } });
-        }
+        if (dueDateCondition) extraConditions.push(dueDateCondition);
+        if (deferDateCondition) extraConditions.push(deferDateCondition);
 
         if (extraConditions.length > 0) {
             conditions[Op.and] = extraConditions;

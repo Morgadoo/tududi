@@ -81,6 +81,70 @@ function calculateTaskStatus(tasks) {
 
 class ProjectsService {
     /**
+     * Apply status filter to where clause.
+     */
+    applyStatusFilter(whereClause, statusFilter, active) {
+        if (active === 'true') {
+            whereClause.status = {
+                [Op.in]: ['planned', 'in_progress', 'waiting'],
+            };
+            return;
+        }
+        if (active === 'false') {
+            whereClause.status = { [Op.in]: ['not_started', 'done'] };
+            return;
+        }
+        if (statusFilter && statusFilter !== 'all') {
+            whereClause.status = Array.isArray(statusFilter)
+                ? { [Op.in]: statusFilter }
+                : statusFilter;
+        }
+    }
+
+    /**
+     * Apply area filter to where clause.
+     */
+    async applyAreaFilter(whereClause, area, area_id) {
+        if (area && area !== '') {
+            const uid = extractUidFromSlug(area);
+            if (uid) {
+                const areaRecord = await projectsRepository.findAreaByUid(uid);
+                if (areaRecord) {
+                    return {
+                        [Op.and]: [whereClause, { area_id: areaRecord.id }],
+                    };
+                }
+            }
+        } else if (area_id && area_id !== '') {
+            return { [Op.and]: [whereClause, { area_id }] };
+        }
+        return whereClause;
+    }
+
+    /**
+     * Enhance project with computed fields.
+     */
+    enhanceProject(project, shareCountMap) {
+        const taskStatus = calculateTaskStatus(project.Tasks);
+        const projectJson = project.toJSON();
+        const shareCount = shareCountMap[project.uid] || 0;
+
+        return {
+            ...projectJson,
+            tags: sortTags(projectJson.Tags),
+            due_date_at: formatDate(project.due_date_at),
+            task_status: taskStatus,
+            completion_percentage:
+                taskStatus.total > 0
+                    ? Math.round((taskStatus.done / taskStatus.total) * 100)
+                    : 0,
+            user_uid: projectJson.User?.uid,
+            share_count: shareCount,
+            is_shared: shareCount > 0,
+        };
+    }
+
+    /**
      * Get all projects for a user with filters.
      */
     async getAll(userId, query) {
@@ -100,41 +164,12 @@ class ProjectsService {
             userId
         );
 
-        if (statusFilter && statusFilter !== 'all') {
-            if (Array.isArray(statusFilter)) {
-                whereClause.status = { [Op.in]: statusFilter };
-            } else {
-                whereClause.status = statusFilter;
-            }
-        }
+        this.applyStatusFilter(whereClause, statusFilter, active);
 
-        if (active === 'true') {
-            whereClause.status = {
-                [Op.in]: ['planned', 'in_progress', 'waiting'],
-            };
-        } else if (active === 'false') {
-            whereClause.status = { [Op.in]: ['not_started', 'done'] };
-        }
+        if (pin_to_sidebar === 'true') whereClause.pin_to_sidebar = true;
+        else if (pin_to_sidebar === 'false') whereClause.pin_to_sidebar = false;
 
-        if (pin_to_sidebar === 'true') {
-            whereClause.pin_to_sidebar = true;
-        } else if (pin_to_sidebar === 'false') {
-            whereClause.pin_to_sidebar = false;
-        }
-
-        if (area && area !== '') {
-            const uid = extractUidFromSlug(area);
-            if (uid) {
-                const areaRecord = await projectsRepository.findAreaByUid(uid);
-                if (areaRecord) {
-                    whereClause = {
-                        [Op.and]: [whereClause, { area_id: areaRecord.id }],
-                    };
-                }
-            }
-        } else if (area_id && area_id !== '') {
-            whereClause = { [Op.and]: [whereClause, { area_id }] };
-        }
+        whereClause = await this.applyAreaFilter(whereClause, area, area_id);
 
         const projects =
             await projectsRepository.findAllWithFilters(whereClause);
@@ -143,33 +178,15 @@ class ProjectsService {
         const shareCountMap =
             await projectsRepository.getShareCounts(projectUids);
 
-        const enhancedProjects = projects.map((project) => {
-            const taskStatus = calculateTaskStatus(project.Tasks);
-            const projectJson = project.toJSON();
-            const shareCount = shareCountMap[project.uid] || 0;
-
-            return {
-                ...projectJson,
-                tags: sortTags(projectJson.Tags),
-                due_date_at: formatDate(project.due_date_at),
-                task_status: taskStatus,
-                completion_percentage:
-                    taskStatus.total > 0
-                        ? Math.round((taskStatus.done / taskStatus.total) * 100)
-                        : 0,
-                user_uid: projectJson.User?.uid,
-                share_count: shareCount,
-                is_shared: shareCount > 0,
-            };
-        });
+        const enhancedProjects = projects.map((p) =>
+            this.enhanceProject(p, shareCountMap)
+        );
 
         if (grouped === 'true') {
             const groupedProjects = {};
             enhancedProjects.forEach((project) => {
-                const areaName = project.Area ? project.Area.name : 'No Area';
-                if (!groupedProjects[areaName]) {
-                    groupedProjects[areaName] = [];
-                }
+                const areaName = project.Area?.name || 'No Area';
+                if (!groupedProjects[areaName]) groupedProjects[areaName] = [];
                 groupedProjects[areaName].push(project);
             });
             return groupedProjects;
