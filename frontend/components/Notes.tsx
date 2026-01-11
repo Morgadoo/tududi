@@ -73,7 +73,9 @@ const Notes: React.FC = () => {
     const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
     const [noteToDelete, setNoteToDelete] = useState<Note | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
-    const [orderBy, setOrderBy] = useState<string>('created_at:desc');
+    const [orderBy, setOrderBy] = useState<string>(() => {
+        return localStorage.getItem('notes_order_by') || 'created_at:desc';
+    });
     const [showProjectDropdown, setShowProjectDropdown] = useState(false);
     const [showTagsInput, setShowTagsInput] = useState(false);
     const [showDiscardDialog, setShowDiscardDialog] = useState(false);
@@ -157,6 +159,7 @@ const Notes: React.FC = () => {
 
     const handleSortChange = (newOrderBy: string) => {
         setOrderBy(newOrderBy);
+        localStorage.setItem('notes_order_by', newOrderBy);
     };
 
     const handleSelectNote = async (note: Note | null) => {
