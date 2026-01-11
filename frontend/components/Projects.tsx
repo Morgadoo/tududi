@@ -66,7 +66,9 @@ const Projects: React.FC = () => {
         return saved === 'list' || saved === 'cards' ? saved : 'cards';
     });
     const [isSearchExpanded, setIsSearchExpanded] = useState<boolean>(false);
-    const [orderBy, setOrderBy] = useState<string>('created_at:desc');
+    const [orderBy, setOrderBy] = useState<string>(() => {
+        return localStorage.getItem('projects_order_by') || 'created_at:desc';
+    });
 
     const [searchParams, setSearchParams] = useSearchParams();
     const statusFilter = searchParams.get('status') || 'not_completed';
@@ -182,6 +184,7 @@ const Projects: React.FC = () => {
     // Handle sort change
     const handleSortChange = (newOrderBy: string) => {
         setOrderBy(newOrderBy);
+        localStorage.setItem('projects_order_by', newOrderBy);
     };
 
     const handleSaveProject = async (project: Project) => {
