@@ -125,13 +125,15 @@ class NotesService {
     /**
      * Get all notes for a user with optional filtering.
      */
-    async getAll(userId, options = {}) {
+    async getAll(userId, options = {}, profileId = null) {
         const { orderBy = 'title:asc', tagFilter } = options;
         const [orderColumn, orderDirection] = orderBy.split(':');
 
         const whereClause = await permissionsService.ownershipOrPermissionWhere(
             'note',
-            userId
+            userId,
+            null,
+            profileId
         );
 
         const notes = await notesRepository.findAllWithIncludes(whereClause, {
@@ -171,7 +173,8 @@ class NotesService {
      */
     async create(
         userId,
-        { title, content, project_uid, project_id, tags, color }
+        { title, content, project_uid, project_id, tags, color },
+        profileId = null
     ) {
         const noteAttributes = { title, content };
 
@@ -191,7 +194,8 @@ class NotesService {
 
         const note = await notesRepository.createForUser(
             userId,
-            noteAttributes
+            noteAttributes,
+            profileId
         );
 
         // Handle tags

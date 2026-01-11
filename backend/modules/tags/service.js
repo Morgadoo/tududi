@@ -8,8 +8,8 @@ class TagsService {
     /**
      * Get all tags for a user.
      */
-    async getAllForUser(userId) {
-        const tags = await tagsRepository.findAllByUser(userId);
+    async getAllForUser(userId, profileId = null) {
+        const tags = await tagsRepository.findAllByUser(userId, profileId);
         return tags.map((tag) => ({
             uid: tag.uid,
             name: tag.name,
@@ -19,15 +19,16 @@ class TagsService {
     /**
      * Get a single tag by uid or name.
      */
-    async getByQuery(userId, { uid, name }) {
+    async getByQuery(userId, { uid, name }, profileId = null) {
         let tag = null;
 
         if (uid) {
-            tag = await tagsRepository.findByUid(userId, uid);
+            tag = await tagsRepository.findByUid(userId, uid, profileId);
         } else if (name) {
             tag = await tagsRepository.findByName(
                 userId,
-                decodeURIComponent(name)
+                decodeURIComponent(name),
+                profileId
             );
         }
 
@@ -44,17 +45,26 @@ class TagsService {
     /**
      * Create a new tag.
      */
-    async create(userId, name) {
+    async create(userId, name, profileId = null) {
         const validatedName = validateTagName(name);
 
-        const exists = await tagsRepository.nameExists(userId, validatedName);
+        const exists = await tagsRepository.nameExists(
+            userId,
+            validatedName,
+            null,
+            profileId
+        );
         if (exists) {
             throw new ConflictError(
                 `A tag with the name "${validatedName}" already exists.`
             );
         }
 
-        const tag = await tagsRepository.createForUser(userId, validatedName);
+        const tag = await tagsRepository.createForUser(
+            userId,
+            validatedName,
+            profileId
+        );
 
         return {
             uid: tag.uid,
@@ -65,11 +75,12 @@ class TagsService {
     /**
      * Update a tag's name.
      */
-    async update(userId, identifier, newName) {
+    async update(userId, identifier, newName, profileId = null) {
         const decodedIdentifier = decodeURIComponent(identifier);
         const tag = await tagsRepository.findByIdentifier(
             userId,
-            decodedIdentifier
+            decodedIdentifier,
+            profileId
         );
 
         if (!tag) {
@@ -83,7 +94,8 @@ class TagsService {
             const exists = await tagsRepository.nameExists(
                 userId,
                 validatedName,
-                tag.id
+                tag.id,
+                profileId
             );
             if (exists) {
                 throw new ConflictError(
@@ -103,11 +115,12 @@ class TagsService {
     /**
      * Delete a tag and all its associations.
      */
-    async delete(userId, identifier) {
+    async delete(userId, identifier, profileId = null) {
         const decodedIdentifier = decodeURIComponent(identifier);
         const tag = await tagsRepository.findByIdentifier(
             userId,
-            decodedIdentifier
+            decodedIdentifier,
+            profileId
         );
 
         if (!tag) {

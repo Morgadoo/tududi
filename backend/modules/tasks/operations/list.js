@@ -47,13 +47,19 @@ async function addDashboardLists(
     timezone,
     queryType,
     includeLists,
-    serializationOptions
+    serializationOptions,
+    profileId = null
 ) {
     if (queryType !== 'today' || includeLists !== 'true') {
         return;
     }
 
-    const metricsData = await computeTaskMetrics(userId, timezone);
+    const metricsData = await computeTaskMetrics(
+        userId,
+        timezone,
+        null,
+        profileId
+    );
 
     const listKeys = [
         'tasks_in_progress',

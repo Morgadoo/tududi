@@ -12,9 +12,13 @@ class TagsRepository extends BaseRepository {
     /**
      * Find all tags for a user, ordered alphabetically (case-insensitive).
      */
-    async findAllByUser(userId) {
+    async findAllByUser(userId, profileId = null) {
+        const where = { user_id: userId };
+        if (profileId) {
+            where.profile_id = profileId;
+        }
         return this.model.findAll({
-            where: { user_id: userId },
+            where,
             attributes: ['id', 'uid', 'name'],
             order: [[sequelize.fn('LOWER', sequelize.col('name')), 'ASC']],
         });
@@ -23,21 +27,27 @@ class TagsRepository extends BaseRepository {
     /**
      * Find a tag by uid or name for a specific user.
      */
-    async findByIdentifier(userId, identifier) {
-        return this.model.findOne({
-            where: {
-                user_id: userId,
-                [Op.or]: [{ uid: identifier }, { name: identifier }],
-            },
-        });
+    async findByIdentifier(userId, identifier, profileId = null) {
+        const where = {
+            user_id: userId,
+            [Op.or]: [{ uid: identifier }, { name: identifier }],
+        };
+        if (profileId) {
+            where.profile_id = profileId;
+        }
+        return this.model.findOne({ where });
     }
 
     /**
      * Find a tag by uid for a specific user.
      */
-    async findByUid(userId, uid) {
+    async findByUid(userId, uid, profileId = null) {
+        const where = { user_id: userId, uid };
+        if (profileId) {
+            where.profile_id = profileId;
+        }
         return this.model.findOne({
-            where: { user_id: userId, uid },
+            where,
             attributes: ['id', 'uid', 'name'],
         });
     }
@@ -45,19 +55,24 @@ class TagsRepository extends BaseRepository {
     /**
      * Find a tag by name for a specific user.
      */
-    async findByName(userId, name) {
-        return this.model.findOne({
-            where: { user_id: userId, name },
-        });
+    async findByName(userId, name, profileId = null) {
+        const where = { user_id: userId, name };
+        if (profileId) {
+            where.profile_id = profileId;
+        }
+        return this.model.findOne({ where });
     }
 
     /**
      * Check if a tag name exists for a user (optionally excluding a specific tag).
      */
-    async nameExists(userId, name, excludeId = null) {
+    async nameExists(userId, name, excludeId = null, profileId = null) {
         const where = { user_id: userId, name };
         if (excludeId) {
             where.id = { [Op.ne]: excludeId };
+        }
+        if (profileId) {
+            where.profile_id = profileId;
         }
         return this.exists(where);
     }
@@ -65,10 +80,11 @@ class TagsRepository extends BaseRepository {
     /**
      * Create a new tag for a user.
      */
-    async createForUser(userId, name) {
+    async createForUser(userId, name, profileId = null) {
         return this.model.create({
             name,
             user_id: userId,
+            profile_id: profileId,
         });
     }
 

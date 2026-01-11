@@ -183,10 +183,17 @@ router.get('/tasks', async (req, res) => {
             offset: offsetParam,
         } = req.query;
         const { id: userId, timezone, language } = req.currentUser;
+        const profileId = req.activeProfileId;
 
         await handleRecurringTasks(userId, type);
 
-        let tasks = await filterTasksByParams(req.query, userId, timezone);
+        let tasks = await filterTasksByParams(
+            req.query,
+            userId,
+            timezone,
+            null,
+            profileId
+        );
 
         if (type === 'upcoming' && groupBy === 'day') {
             console.log('[DEBUG] Expanding recurring tasks for /upcoming');
@@ -281,7 +288,8 @@ router.get('/tasks', async (req, res) => {
             timezone,
             type,
             include_lists,
-            serializationOptions
+            serializationOptions,
+            profileId
         );
 
         if (hasPagination) {
@@ -311,7 +319,8 @@ router.get('/tasks/metrics', async (req, res) => {
         const response = await getTaskMetrics(
             req.currentUser.id,
             req.currentUser.timezone,
-            req.query.type
+            req.query.type,
+            req.activeProfileId
         );
 
         res.json(response);
@@ -326,6 +335,7 @@ router.post('/task', async (req, res) => {
         const { name, project_id, parent_task_id, tags, Tags, subtasks } =
             req.body;
         const tagsData = tags || Tags;
+        const profileId = req.activeProfileId;
 
         if (!name || name.trim() === '') {
             return res.status(400).json({ error: 'Task name is required.' });
@@ -335,7 +345,9 @@ router.post('/task', async (req, res) => {
         const taskAttributes = buildTaskAttributes(
             req.body,
             req.currentUser.id,
-            timezone
+            timezone,
+            false,
+            profileId
         );
 
         try {

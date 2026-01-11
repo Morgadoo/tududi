@@ -2,8 +2,8 @@ const { DataTypes } = require('sequelize');
 const { uid } = require('../utils/uid');
 
 module.exports = (sequelize) => {
-    const Area = sequelize.define(
-        'Area',
+    const Profile = sequelize.define(
+        'Profile',
         {
             id: {
                 type: DataTypes.INTEGER,
@@ -16,14 +16,6 @@ module.exports = (sequelize) => {
                 unique: true,
                 defaultValue: uid,
             },
-            name: {
-                type: DataTypes.STRING,
-                allowNull: false,
-            },
-            description: {
-                type: DataTypes.STRING,
-                allowNull: true,
-            },
             user_id: {
                 type: DataTypes.INTEGER,
                 allowNull: false,
@@ -32,30 +24,43 @@ module.exports = (sequelize) => {
                     key: 'id',
                 },
             },
-            profile_id: {
+            name: {
+                type: DataTypes.STRING,
+                allowNull: false,
+            },
+            icon: {
+                type: DataTypes.STRING,
+                allowNull: false,
+                defaultValue: 'folder',
+            },
+            color: {
+                type: DataTypes.STRING,
+                allowNull: false,
+                defaultValue: '#6B7280',
+            },
+            is_default: {
+                type: DataTypes.BOOLEAN,
+                allowNull: false,
+                defaultValue: false,
+            },
+            order: {
                 type: DataTypes.INTEGER,
-                allowNull: true,
-                references: {
-                    model: 'profiles',
-                    key: 'id',
-                },
+                allowNull: false,
+                defaultValue: 0,
             },
         },
         {
-            tableName: 'areas',
+            tableName: 'profiles',
             indexes: [
                 {
                     fields: ['user_id'],
                 },
                 {
-                    fields: ['profile_id'],
-                },
-                {
-                    fields: ['user_id', 'profile_id'],
+                    fields: ['user_id', 'is_default'],
                 },
             ],
         }
     );
 
-    return Area;
+    return Profile;
 };

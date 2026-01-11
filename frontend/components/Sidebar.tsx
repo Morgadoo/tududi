@@ -11,6 +11,7 @@ import SidebarHabits from './Sidebar/SidebarHabits';
 import SidebarProjects from './Sidebar/SidebarProjects';
 import SidebarTags from './Sidebar/SidebarTags';
 import SidebarViews from './Sidebar/SidebarViews';
+import ProfileSwitcher from './Profile/ProfileSwitcher';
 import { getFeatureFlags, FeatureFlags } from '../utils/featureFlags';
 import { KeyboardShortcutsConfig } from '../utils/keyboardShortcutsService';
 
@@ -89,7 +90,12 @@ const Sidebar: React.FC<SidebarProps> = ({
         >
             {isSidebarOpen && (
                 <div className="flex flex-col h-full overflow-y-auto">
-                    <div className="px-3 pb-3 pt-8">
+                    <div className="px-3 pb-3 pt-4">
+                        {/* Profile Switcher */}
+                        <div className="mb-4">
+                            <ProfileSwitcher />
+                        </div>
+
                         {/* Sidebar Contents */}
                         <SidebarNav
                             handleNavClick={handleNavClick}

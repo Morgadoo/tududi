@@ -122,6 +122,7 @@ const habitsModule = require('./modules/habits');
 const inboxModule = require('./modules/inbox');
 const notesModule = require('./modules/notes');
 const notificationsModule = require('./modules/notifications');
+const profilesModule = require('./modules/profiles');
 const projectsModule = require('./modules/projects');
 const quotesModule = require('./modules/quotes');
 const searchModule = require('./modules/search');
@@ -195,6 +196,7 @@ const registerApiRoutes = (basePath) => {
     app.use(basePath, featureFlagsModule.routes);
 
     app.use(basePath, requireAuth);
+    app.use(basePath, profilesModule.routes);
     app.use(basePath, tasksModule.routes);
     app.use(basePath, habitsModule.routes);
     app.use(basePath, projectsModule.routes);

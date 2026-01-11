@@ -28,6 +28,14 @@ module.exports = (sequelize) => {
                     key: 'id',
                 },
             },
+            profile_id: {
+                type: DataTypes.INTEGER,
+                allowNull: true,
+                references: {
+                    model: 'profiles',
+                    key: 'id',
+                },
+            },
         },
         {
             tableName: 'tags',
@@ -39,6 +47,17 @@ module.exports = (sequelize) => {
                     unique: true,
                     fields: ['user_id', 'name'],
                     name: 'tags_user_id_name_unique',
+                },
+                {
+                    fields: ['profile_id'],
+                },
+                {
+                    fields: ['user_id', 'profile_id'],
+                },
+                {
+                    unique: true,
+                    fields: ['user_id', 'profile_id', 'name'],
+                    name: 'tags_user_profile_name_unique',
                 },
             ],
         }

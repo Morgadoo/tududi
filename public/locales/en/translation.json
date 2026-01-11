@@ -1344,5 +1344,33 @@
       "title": "Note:",
       "message": "Email and Push notifications are coming soon. In-app and Telegram notifications are currently available."
     }
+  },
+  "profiles": {
+    "manage": "Manage Profiles",
+    "description": "Profiles help you organize your tasks into separate workspaces like Work and Personal.",
+    "currentProfile": "Current Profile",
+    "switch_to": "Switch to",
+    "name": "Name",
+    "namePlaceholder": "e.g., Work, Personal",
+    "nameRequired": "Profile name is required",
+    "icon": "Icon",
+    "color": "Color",
+    "preview": "Preview",
+    "untitled": "Untitled",
+    "create": "Create Profile",
+    "created": "Profile created successfully",
+    "createError": "Failed to create profile",
+    "updated": "Profile updated successfully",
+    "updateError": "Failed to update profile",
+    "deleted": "Profile deleted successfully",
+    "deleteError": "Failed to delete profile",
+    "deleteTitle": "Delete Profile",
+    "deleteConfirm": "Are you sure you want to delete \"{{name}}\"? All tasks, projects, notes, and other data in this profile will be permanently deleted.",
+    "default": "Default",
+    "active": "Active",
+    "addNew": "Add New Profile",
+    "maxReached": "Maximum profiles reached (10)",
+    "warning": "Important",
+    "warningText": "Deleting a profile will permanently delete all tasks, projects, notes, and other data within that profile. This action cannot be undone."
   }
 }

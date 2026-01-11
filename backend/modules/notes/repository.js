@@ -107,10 +107,11 @@ class NotesRepository extends BaseRepository {
     /**
      * Create a note for a user.
      */
-    async createForUser(userId, data) {
+    async createForUser(userId, data, profileId = null) {
         return this.model.create({
             ...data,
             user_id: userId,
+            profile_id: profileId,
         });
     }
 }

@@ -192,13 +192,15 @@ async function computeWeeklyCompletions(userId, userTimezone) {
 async function computeTaskMetrics(
     userId,
     userTimezone = 'UTC',
-    permissionCache = null
+    permissionCache = null,
+    profileId = null
 ) {
     const visibleTasksWhere =
         await permissionsService.ownershipOrPermissionWhere(
             'task',
             userId,
-            permissionCache
+            permissionCache,
+            profileId
         );
 
     const [
@@ -245,8 +247,8 @@ async function computeTaskMetrics(
     };
 }
 
-async function getTaskMetrics(userId, timezone) {
-    const metrics = await computeTaskMetrics(userId, timezone);
+async function getTaskMetrics(userId, timezone, type, profileId = null) {
+    const metrics = await computeTaskMetrics(userId, timezone, null, profileId);
     const {
         buildMetricsResponse,
         serializeTasks,

@@ -5,7 +5,13 @@ const {
     processDeferUntilForStorage,
 } = require('../../../utils/timezone-utils');
 
-function buildTaskAttributes(body, userId, timezone, isUpdate = false) {
+function buildTaskAttributes(
+    body,
+    userId,
+    timezone,
+    isUpdate = false,
+    profileId = null
+) {
     const recurrenceType = body.recurrence_type || 'none';
     const isRecurring = recurrenceType && recurrenceType !== 'none';
 
@@ -52,6 +58,9 @@ function buildTaskAttributes(body, userId, timezone, isUpdate = false) {
 
     if (!isUpdate) {
         attrs.user_id = userId;
+        if (profileId) {
+            attrs.profile_id = profileId;
+        }
     }
 
     return attrs;

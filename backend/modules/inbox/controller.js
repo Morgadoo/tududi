@@ -26,8 +26,13 @@ const inboxController = {
     async list(req, res, next) {
         try {
             const userId = requireUserId(req);
+            const profileId = req.activeProfileId;
             const { limit, offset } = req.query;
-            const result = await inboxService.getAll(userId, { limit, offset });
+            const result = await inboxService.getAll(
+                userId,
+                { limit, offset },
+                profileId
+            );
             res.json(result);
         } catch (error) {
             next(error);
@@ -41,8 +46,9 @@ const inboxController = {
     async getOne(req, res, next) {
         try {
             const userId = requireUserId(req);
+            const profileId = req.activeProfileId;
             const { uid } = req.params;
-            const item = await inboxService.getByUid(userId, uid);
+            const item = await inboxService.getByUid(userId, uid, profileId);
             res.json(item);
         } catch (error) {
             next(error);
@@ -56,8 +62,13 @@ const inboxController = {
     async create(req, res, next) {
         try {
             const userId = requireUserId(req);
+            const profileId = req.activeProfileId;
             const { content, source } = req.body;
-            const item = await inboxService.create(userId, { content, source });
+            const item = await inboxService.create(
+                userId,
+                { content, source },
+                profileId
+            );
             res.status(201).json(item);
         } catch (error) {
             next(error);
@@ -71,12 +82,18 @@ const inboxController = {
     async update(req, res, next) {
         try {
             const userId = requireUserId(req);
+            const profileId = req.activeProfileId;
             const { uid } = req.params;
             const { content, status } = req.body;
-            const item = await inboxService.update(userId, uid, {
-                content,
-                status,
-            });
+            const item = await inboxService.update(
+                userId,
+                uid,
+                {
+                    content,
+                    status,
+                },
+                profileId
+            );
             res.json(item);
         } catch (error) {
             next(error);
@@ -90,8 +107,9 @@ const inboxController = {
     async delete(req, res, next) {
         try {
             const userId = requireUserId(req);
+            const profileId = req.activeProfileId;
             const { uid } = req.params;
-            const result = await inboxService.delete(userId, uid);
+            const result = await inboxService.delete(userId, uid, profileId);
             res.json(result);
         } catch (error) {
             next(error);
@@ -105,8 +123,9 @@ const inboxController = {
     async process(req, res, next) {
         try {
             const userId = requireUserId(req);
+            const profileId = req.activeProfileId;
             const { uid } = req.params;
-            const item = await inboxService.process(userId, uid);
+            const item = await inboxService.process(userId, uid, profileId);
             res.json(item);
         } catch (error) {
             next(error);

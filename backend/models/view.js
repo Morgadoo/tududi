@@ -28,6 +28,14 @@ module.exports = (sequelize) => {
                     key: 'id',
                 },
             },
+            profile_id: {
+                type: DataTypes.INTEGER,
+                allowNull: true,
+                references: {
+                    model: 'profiles',
+                    key: 'id',
+                },
+            },
             search_query: {
                 type: DataTypes.STRING,
                 allowNull: true,
@@ -95,6 +103,12 @@ module.exports = (sequelize) => {
                 },
                 {
                     fields: ['user_id', 'is_pinned'],
+                },
+                {
+                    fields: ['profile_id'],
+                },
+                {
+                    fields: ['user_id', 'profile_id'],
                 },
             ],
         }

@@ -13,7 +13,11 @@ const tagsController = {
      */
     async list(req, res, next) {
         try {
-            const tags = await tagsService.getAllForUser(req.currentUser.id);
+            const profileId = req.activeProfileId;
+            const tags = await tagsService.getAllForUser(
+                req.currentUser.id,
+                profileId
+            );
             res.json(tags);
         } catch (error) {
             next(error);
@@ -27,10 +31,15 @@ const tagsController = {
     async getOne(req, res, next) {
         try {
             const { uid, name } = req.query;
-            const tag = await tagsService.getByQuery(req.currentUser.id, {
-                uid,
-                name,
-            });
+            const profileId = req.activeProfileId;
+            const tag = await tagsService.getByQuery(
+                req.currentUser.id,
+                {
+                    uid,
+                    name,
+                },
+                profileId
+            );
             res.json(tag);
         } catch (error) {
             next(error);
@@ -44,7 +53,12 @@ const tagsController = {
     async create(req, res, next) {
         try {
             const { name } = req.body;
-            const tag = await tagsService.create(req.currentUser.id, name);
+            const profileId = req.activeProfileId;
+            const tag = await tagsService.create(
+                req.currentUser.id,
+                name,
+                profileId
+            );
             res.status(201).json(tag);
         } catch (error) {
             next(error);
@@ -59,10 +73,12 @@ const tagsController = {
         try {
             const { identifier } = req.params;
             const { name } = req.body;
+            const profileId = req.activeProfileId;
             const tag = await tagsService.update(
                 req.currentUser.id,
                 identifier,
-                name
+                name,
+                profileId
             );
             res.json(tag);
         } catch (error) {
@@ -77,9 +93,11 @@ const tagsController = {
     async delete(req, res, next) {
         try {
             const { identifier } = req.params;
+            const profileId = req.activeProfileId;
             const result = await tagsService.delete(
                 req.currentUser.id,
-                identifier
+                identifier,
+                profileId
             );
             res.json(result);
         } catch (error) {

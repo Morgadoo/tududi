@@ -1,4 +1,4 @@
-const { User } = require('../models');
+const { User, Profile } = require('../models');
 const { findValidTokenByValue } = require('../modules/users/apiTokenService');
 
 const getBearerToken = (req) => {
@@ -25,6 +25,16 @@ const requireAuth = async (req, res, next) => {
                 return res.status(401).json({ error: 'User not found' });
             }
             req.currentUser = user;
+
+            // Load active profile
+            if (user.active_profile_id) {
+                const profile = await Profile.findByPk(user.active_profile_id);
+                if (profile) {
+                    req.activeProfile = profile;
+                    req.activeProfileId = profile.id;
+                }
+            }
+
             return next();
         }
 
@@ -47,6 +57,15 @@ const requireAuth = async (req, res, next) => {
 
         req.currentUser = user;
         req.authToken = apiToken;
+
+        // Load active profile for API token auth
+        if (user.active_profile_id) {
+            const profile = await Profile.findByPk(user.active_profile_id);
+            if (profile) {
+                req.activeProfile = profile;
+                req.activeProfileId = profile.id;
+            }
+        }
 
         // Update last_used_at asynchronously (non-blocking) to avoid slowing down the request
         // Only update if it hasn't been updated in the last 5 minutes to reduce database writes

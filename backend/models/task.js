@@ -114,6 +114,14 @@ module.exports = (sequelize) => {
                     key: 'id',
                 },
             },
+            profile_id: {
+                type: DataTypes.INTEGER,
+                allowNull: true,
+                references: {
+                    model: 'profiles',
+                    key: 'id',
+                },
+            },
             project_id: {
                 type: DataTypes.INTEGER,
                 allowNull: true,
@@ -241,6 +249,14 @@ module.exports = (sequelize) => {
                 {
                     name: 'tasks_user_completed_at_status_idx',
                     fields: ['user_id', 'completed_at', 'status'],
+                },
+                {
+                    name: 'tasks_profile_id_idx',
+                    fields: ['profile_id'],
+                },
+                {
+                    name: 'tasks_user_profile_status_idx',
+                    fields: ['user_id', 'profile_id', 'status'],
                 },
             ],
         }

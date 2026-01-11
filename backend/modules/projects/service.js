@@ -75,7 +75,7 @@ class ProjectsService {
     /**
      * Get all projects for a user with filters.
      */
-    async getAll(userId, query) {
+    async getAll(userId, query, profileId = null) {
         const {
             status,
             state,
@@ -89,7 +89,9 @@ class ProjectsService {
 
         let whereClause = await permissionsService.ownershipOrPermissionWhere(
             'project',
-            userId
+            userId,
+            null,
+            profileId
         );
 
         if (statusFilter && statusFilter !== 'all') {
@@ -241,7 +243,7 @@ class ProjectsService {
     /**
      * Create a new project.
      */
-    async create(userId, data) {
+    async create(userId, data, profileId = null) {
         const {
             name,
             description,
@@ -270,6 +272,7 @@ class ProjectsService {
             image_url: image_url || null,
             status: status || state || 'not_started',
             user_id: userId,
+            profile_id: profileId,
         };
 
         const project = await projectsRepository.create(projectData);

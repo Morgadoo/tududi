@@ -5,6 +5,7 @@ import { Note } from '../entities/Note';
 import { Task } from '../entities/Task';
 import { Tag } from '../entities/Tag';
 import { InboxItem } from '../entities/InboxItem';
+import { Profile } from '../entities/Profile';
 
 interface NotesStore {
     notes: Note[];
@@ -112,6 +113,31 @@ interface HabitsStore {
     removeTodayCompletion: (habitUid: string) => Promise<void>;
 }
 
+interface ProfilesStore {
+    profiles: Profile[];
+    activeProfile: Profile | null;
+    isLoading: boolean;
+    isError: boolean;
+    hasLoaded: boolean;
+    setProfiles: (profiles: Profile[]) => void;
+    setActiveProfile: (profile: Profile | null) => void;
+    setLoading: (isLoading: boolean) => void;
+    setError: (isError: boolean) => void;
+    loadProfiles: () => Promise<void>;
+    switchProfile: (profileUid: string) => Promise<void>;
+    createProfile: (data: {
+        name: string;
+        icon?: string;
+        color?: string;
+    }) => Promise<Profile>;
+    updateProfile: (
+        uid: string,
+        data: { name?: string; icon?: string; color?: string }
+    ) => Promise<Profile>;
+    deleteProfile: (uid: string) => Promise<void>;
+    resetAllStores: () => void;
+}
+
 interface StoreState {
     notesStore: NotesStore;
     areasStore: AreasStore;
@@ -120,6 +146,7 @@ interface StoreState {
     tasksStore: TasksStore;
     inboxStore: InboxStore;
     habitsStore: HabitsStore;
+    profilesStore: ProfilesStore;
 }
 
 export const useStore = create<StoreState>((set: any) => ({
@@ -766,6 +793,195 @@ export const useStore = create<StoreState>((set: any) => ({
                 console.error('Failed to remove habit completion:', error);
                 throw error;
             }
+        },
+    },
+
+    // Profiles Store
+    profilesStore: {
+        profiles: [],
+        activeProfile: null,
+        isLoading: false,
+        isError: false,
+        hasLoaded: false,
+        setProfiles: (profiles) =>
+            set((state) => ({
+                profilesStore: { ...state.profilesStore, profiles },
+            })),
+        setActiveProfile: (activeProfile) =>
+            set((state) => ({
+                profilesStore: { ...state.profilesStore, activeProfile },
+            })),
+        setLoading: (isLoading) =>
+            set((state) => ({
+                profilesStore: { ...state.profilesStore, isLoading },
+            })),
+        setError: (isError) =>
+            set((state) => ({
+                profilesStore: { ...state.profilesStore, isError },
+            })),
+        loadProfiles: async () => {
+            const state = useStore.getState();
+            if (state.profilesStore.isLoading) return;
+
+            const { fetchProfiles, fetchActiveProfile } = await import(
+                '../utils/profilesService'
+            );
+
+            set((state) => ({
+                profilesStore: {
+                    ...state.profilesStore,
+                    isLoading: true,
+                    isError: false,
+                },
+            }));
+
+            try {
+                const [profiles, activeProfile] = await Promise.all([
+                    fetchProfiles(),
+                    fetchActiveProfile(),
+                ]);
+                set((state) => ({
+                    profilesStore: {
+                        ...state.profilesStore,
+                        profiles,
+                        activeProfile,
+                        isLoading: false,
+                        hasLoaded: true,
+                    },
+                }));
+            } catch (error) {
+                console.error('Failed to load profiles:', error);
+                set((state) => ({
+                    profilesStore: {
+                        ...state.profilesStore,
+                        isError: true,
+                        isLoading: false,
+                    },
+                }));
+            }
+        },
+        switchProfile: async (profileUid) => {
+            const { switchProfile } = await import('../utils/profilesService');
+
+            try {
+                const newActiveProfile = await switchProfile(profileUid);
+
+                // Update the active profile in store
+                set((state) => ({
+                    profilesStore: {
+                        ...state.profilesStore,
+                        activeProfile: newActiveProfile,
+                    },
+                }));
+
+                // Reset all other stores to trigger reload with new profile context
+                const store = useStore.getState();
+                store.profilesStore.resetAllStores();
+            } catch (error) {
+                console.error('Failed to switch profile:', error);
+                throw error;
+            }
+        },
+        createProfile: async (data) => {
+            const { createProfile } = await import('../utils/profilesService');
+
+            try {
+                const newProfile = await createProfile(data);
+                set((state) => ({
+                    profilesStore: {
+                        ...state.profilesStore,
+                        profiles: [...state.profilesStore.profiles, newProfile],
+                    },
+                }));
+                return newProfile;
+            } catch (error) {
+                console.error('Failed to create profile:', error);
+                throw error;
+            }
+        },
+        updateProfile: async (uid, data) => {
+            const { updateProfile } = await import('../utils/profilesService');
+
+            try {
+                const updatedProfile = await updateProfile(uid, data);
+                set((state) => ({
+                    profilesStore: {
+                        ...state.profilesStore,
+                        profiles: state.profilesStore.profiles.map((p) =>
+                            p.uid === uid ? updatedProfile : p
+                        ),
+                        activeProfile:
+                            state.profilesStore.activeProfile?.uid === uid
+                                ? updatedProfile
+                                : state.profilesStore.activeProfile,
+                    },
+                }));
+                return updatedProfile;
+            } catch (error) {
+                console.error('Failed to update profile:', error);
+                throw error;
+            }
+        },
+        deleteProfile: async (uid) => {
+            const { deleteProfile } = await import('../utils/profilesService');
+
+            try {
+                await deleteProfile(uid);
+                set((state) => ({
+                    profilesStore: {
+                        ...state.profilesStore,
+                        profiles: state.profilesStore.profiles.filter(
+                            (p) => p.uid !== uid
+                        ),
+                    },
+                }));
+            } catch (error) {
+                console.error('Failed to delete profile:', error);
+                throw error;
+            }
+        },
+        resetAllStores: () => {
+            // Reset all stores to their initial state to force reload
+            set((state) => ({
+                notesStore: {
+                    ...state.notesStore,
+                    notes: [],
+                    hasLoaded: false,
+                },
+                areasStore: {
+                    ...state.areasStore,
+                    areas: [],
+                    hasLoaded: false,
+                },
+                projectsStore: {
+                    ...state.projectsStore,
+                    projects: [],
+                    currentProject: null,
+                },
+                tagsStore: {
+                    ...state.tagsStore,
+                    tags: [],
+                    hasLoaded: false,
+                },
+                tasksStore: {
+                    ...state.tasksStore,
+                    tasks: [],
+                },
+                inboxStore: {
+                    ...state.inboxStore,
+                    inboxItems: [],
+                    pagination: {
+                        total: 0,
+                        limit: 20,
+                        offset: 0,
+                        hasMore: false,
+                    },
+                },
+                habitsStore: {
+                    ...state.habitsStore,
+                    habits: [],
+                },
+            }));
         },
     },
 }));
