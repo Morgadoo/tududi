@@ -19,10 +19,39 @@ import { getApiPath } from '../config/paths';
 import { Link, useNavigate } from 'react-router-dom';
 import { parseDateString } from '../utils/dateUtils';
 
+interface CalendarEvent {
+    id: string;
+    title: string;
+    start: Date;
+    end: Date;
+    type: 'task' | 'event';
+    color?: string;
+}
+
 // Get display name for a task, with fallback
 const getTaskDisplayName = (task: any): string => {
     return task.name || task.title || `Task ${task.id}`;
 };
+
+// Create a calendar event from task data
+const createTaskEvent = (
+    task: any,
+    idPrefix: string,
+    titlePrefix: string,
+    startDate: Date,
+    durationMs: number,
+    defaultColor: string
+): CalendarEvent => ({
+    id: `${idPrefix}-${task.id}`,
+    title: `${titlePrefix}${getTaskDisplayName(task)}`,
+    start: startDate,
+    end: new Date(startDate.getTime() + durationMs),
+    type: 'task' as const,
+    color: task.completed_at ? '#22c55e' : defaultColor,
+});
+
+const HOUR_MS = 60 * 60 * 1000;
+const HALF_HOUR_MS = 30 * 60 * 1000;
 
 const getLocale = (language: string) => {
     switch (language) {
@@ -40,15 +69,6 @@ const getLocale = (language: string) => {
             return enUS;
     }
 };
-
-interface CalendarEvent {
-    id: string;
-    title: string;
-    start: Date;
-    end: Date;
-    type: 'task' | 'event';
-    color?: string;
-}
 
 const Calendar: React.FC = () => {
     const { t, i18n } = useTranslation();
@@ -110,74 +130,74 @@ const Calendar: React.FC = () => {
     };
 
     const convertTasksToEvents = (tasks: any[]): CalendarEvent[] => {
-        const taskEvents: CalendarEvent[] = [];
-
         if (!Array.isArray(tasks)) {
             console.error('convertTasksToEvents received non-array:', tasks);
             return [];
         }
 
+        const taskEvents: CalendarEvent[] = [];
+
         tasks.forEach((task) => {
-            // Add deferred tasks with defer_until dates
+            // Deferred tasks
             if (task.defer_until) {
-                const deferDate = new Date(task.defer_until);
-                const taskEvent = {
-                    id: `task-defer-${task.id}`,
-                    title: `⏰ ${getTaskDisplayName(task)}`,
-                    start: deferDate,
-                    end: new Date(deferDate.getTime() + 60 * 60 * 1000), // 1 hour duration
-                    type: 'task' as const,
-                    color: task.completed_at ? '#22c55e' : '#f59e0b', // Green if completed, amber if deferred
-                };
-                taskEvents.push(taskEvent);
+                taskEvents.push(
+                    createTaskEvent(
+                        task,
+                        'task-defer',
+                        '⏰ ',
+                        new Date(task.defer_until),
+                        HOUR_MS,
+                        '#f59e0b'
+                    )
+                );
             }
 
-            // Add tasks with due dates
+            // Tasks with due dates
             if (task.due_date) {
                 const dueDate = parseDateString(task.due_date);
                 if (dueDate) {
-                    const taskEvent = {
-                        id: `task-${task.id}`,
-                        title: task.name || task.title || `Task ${task.id}`,
-                        start: dueDate,
-                        end: new Date(dueDate.getTime() + 60 * 60 * 1000), // 1 hour duration
-                        type: 'task' as const,
-                        color: task.completed_at ? '#22c55e' : '#3b82f6', // Green if completed, blue if not
-                    };
-                    taskEvents.push(taskEvent);
+                    taskEvents.push(
+                        createTaskEvent(
+                            task,
+                            'task',
+                            '',
+                            dueDate,
+                            HOUR_MS,
+                            '#3b82f6'
+                        )
+                    );
                 }
             }
 
-            // Add tasks scheduled for today (if they don't have defer_until or due_date)
+            // Tasks created today (no defer/due date)
             if (!task.defer_until && !task.due_date && task.created_at) {
                 const createdDate = new Date(task.created_at);
-                const today = new Date();
-
-                // Show tasks created today on the calendar
-                if (createdDate.toDateString() === today.toDateString()) {
-                    const taskEvent = {
-                        id: `task-created-${task.id}`,
-                        title: `📝 ${getTaskDisplayName(task)}`,
-                        start: createdDate,
-                        end: new Date(createdDate.getTime() + 30 * 60 * 1000), // 30 min duration
-                        type: 'task' as const,
-                        color: task.completed_at ? '#22c55e' : '#3b82f6', // Green if completed, blue if not
-                    };
-                    taskEvents.push(taskEvent);
+                if (createdDate.toDateString() === new Date().toDateString()) {
+                    taskEvents.push(
+                        createTaskEvent(
+                            task,
+                            'task-created',
+                            '📝 ',
+                            createdDate,
+                            HALF_HOUR_MS,
+                            '#3b82f6'
+                        )
+                    );
                 }
             }
 
-            // Always add tasks to calendar for easier debugging (only if no defer_until, due_date, or created_at)
+            // Fallback for tasks without any date
             if (!task.defer_until && !task.due_date && !task.created_at) {
-                const taskEvent = {
-                    id: `task-fallback-${task.id}`,
-                    title: `📌 ${getTaskDisplayName(task)}`,
-                    start: new Date(), // Today
-                    end: new Date(Date.now() + 30 * 60 * 1000), // 30 min duration
-                    type: 'task' as const,
-                    color: task.completed_at ? '#22c55e' : '#8b5cf6', // Green if completed, purple if not
-                };
-                taskEvents.push(taskEvent);
+                taskEvents.push(
+                    createTaskEvent(
+                        task,
+                        'task-fallback',
+                        '📌 ',
+                        new Date(),
+                        HALF_HOUR_MS,
+                        '#8b5cf6'
+                    )
+                );
             }
         });
 
