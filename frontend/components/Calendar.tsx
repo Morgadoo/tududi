@@ -79,7 +79,7 @@ const Calendar: React.FC = () => {
     const [isLoadingTasks, setIsLoadingTasks] = useState(false);
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
     const [allTasks, setAllTasks] = useState<any[]>([]);
-    const [, setProjects] = useState<Project[]>([]);
+    const [_projects, setProjects] = useState<Project[]>([]);
     const [isEventDetailModalOpen, setIsEventDetailModalOpen] = useState(false);
 
     // Dispatch global modal events
@@ -590,14 +590,10 @@ const TaskEventModal: React.FC<TaskEventModalProps> = ({
                                 {t('calendar.dueDate')}
                             </label>
                             <p className="text-gray-900 dark:text-gray-100">
-                                {parseDateString(task.due_date) &&
-                                    format(
-                                        parseDateString(task.due_date) as Date,
-                                        'PPP',
-                                        {
-                                            locale: locale,
-                                        }
-                                    )}
+                                {(() => {
+                                    const dueDate = parseDateString(task.due_date);
+                                    return dueDate && format(dueDate, 'PPP', { locale });
+                                })()}
                             </p>
                         </div>
                     )}

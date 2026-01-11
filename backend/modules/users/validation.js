@@ -55,7 +55,7 @@ function validateFrequency(frequency) {
  * Validate API key ID.
  */
 function validateApiKeyId(id) {
-    const tokenId = parseInt(id, 10);
+    const tokenId = Number.parseInt(id, 10);
     if (Number.isNaN(tokenId)) {
         throw new ValidationError('Invalid API key id.');
     }

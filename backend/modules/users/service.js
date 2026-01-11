@@ -20,8 +20,8 @@ const {
 } = require('./apiTokenService');
 const taskSummaryService = require('../tasks/taskSummaryService');
 const { logError } = require('../../services/logService');
-const fs = require('fs').promises;
-const path = require('path');
+const fs = require('node:fs').promises;
+const path = require('node:path');
 
 // Fields that can be directly copied from data to allowedUpdates
 const SIMPLE_PROFILE_FIELDS = [
@@ -399,38 +399,26 @@ class UsersService {
 
         const todaySettings = {
             projectShowMetrics:
-                projectShowMetrics !== undefined
-                    ? projectShowMetrics
-                    : (user.today_settings?.projectShowMetrics ?? true),
+                projectShowMetrics ??
+                (user.today_settings?.projectShowMetrics ?? true),
             showMetrics:
-                showMetrics !== undefined
-                    ? showMetrics
-                    : user.today_settings?.showMetrics || false,
+                showMetrics ?? (user.today_settings?.showMetrics || false),
             showProductivity:
-                showProductivity !== undefined
-                    ? showProductivity
-                    : user.today_settings?.showProductivity || false,
+                showProductivity ??
+                (user.today_settings?.showProductivity || false),
             showNextTaskSuggestion:
-                showNextTaskSuggestion !== undefined
-                    ? showNextTaskSuggestion
-                    : user.today_settings?.showNextTaskSuggestion || false,
+                showNextTaskSuggestion ??
+                (user.today_settings?.showNextTaskSuggestion || false),
             showSuggestions:
-                showSuggestions !== undefined
-                    ? showSuggestions
-                    : user.today_settings?.showSuggestions || false,
+                showSuggestions ??
+                (user.today_settings?.showSuggestions || false),
             showDueToday:
-                showDueToday !== undefined
-                    ? showDueToday
-                    : user.today_settings?.showDueToday || true,
+                showDueToday ?? (user.today_settings?.showDueToday || true),
             showCompleted:
-                showCompleted !== undefined
-                    ? showCompleted
-                    : user.today_settings?.showCompleted || true,
+                showCompleted ?? (user.today_settings?.showCompleted || true),
             showProgressBar: true,
             showDailyQuote:
-                showDailyQuote !== undefined
-                    ? showDailyQuote
-                    : user.today_settings?.showDailyQuote || true,
+                showDailyQuote ?? (user.today_settings?.showDailyQuote || true),
         };
 
         const profileUpdates = { today_settings: todaySettings };
@@ -485,13 +473,11 @@ class UsersService {
         const newSettings = {
             ...currentSettings,
             project: {
-                ...(currentSettings.project || {}),
-                ...(project || {}),
+                ...currentSettings.project,
+                ...project,
                 details: {
-                    ...((currentSettings.project &&
-                        currentSettings.project.details) ||
-                        {}),
-                    ...((project && project.details) || {}),
+                    ...currentSettings.project?.details,
+                    ...project?.details,
                 },
             },
         };

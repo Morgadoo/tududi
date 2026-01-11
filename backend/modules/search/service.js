@@ -44,8 +44,10 @@ function buildExtraConditions(extras, nowDate, sequelize, Op) {
     }
 
     if (extras.has('overdue')) {
-        extraConditions.push({ due_date: { [Op.lt]: nowDate } });
-        extraConditions.push({ completed_at: null });
+        extraConditions.push(
+            { due_date: { [Op.lt]: nowDate } },
+            { completed_at: null }
+        );
     }
 
     if (extras.has('has_content')) {

@@ -94,7 +94,11 @@ export const SHORTCUT_LABELS: Record<
  */
 export const isMac = (): boolean => {
     if (typeof navigator === 'undefined') return false;
-    return /Mac|iPhone|iPad|iPod/.test(navigator.platform);
+    // Use userAgentData if available, fall back to userAgent
+    if ('userAgentData' in navigator && navigator.userAgentData?.platform) {
+        return /mac/i.test(navigator.userAgentData.platform);
+    }
+    return /Mac|iPhone|iPad|iPod/i.test(navigator.userAgent);
 };
 
 /**
@@ -200,7 +204,7 @@ export const validateShortcuts = (
  * Returns a fresh copy of default shortcuts
  */
 export const getDefaultShortcuts = (): KeyboardShortcut[] => {
-    return JSON.parse(JSON.stringify(DEFAULT_SHORTCUTS));
+    return structuredClone(DEFAULT_SHORTCUTS);
 };
 
 /**

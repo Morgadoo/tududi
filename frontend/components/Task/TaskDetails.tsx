@@ -490,7 +490,7 @@ const TaskDetails: React.FC = () => {
                     setLoadingIterations(true);
                     // Don't pass startFromDate - let backend default to today
                     const iterations = await fetchTaskNextIterations(
-                        task.uid!
+                        task.uid
                     );
                     setNextIterations(iterations);
                 } catch (error) {
@@ -717,7 +717,7 @@ const TaskDetails: React.FC = () => {
                 if (isTemplateTask) {
                     // Don't pass startFromDate - let backend default to today
                     const iterations = await fetchTaskNextIterations(
-                        latestTask.uid!
+                        latestTask.uid
                     );
                     setNextIterations(iterations);
                 } else if (canUseParentIterations && parentTask?.uid) {

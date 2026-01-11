@@ -29,7 +29,7 @@ async function sendWelcomeMessage(token, chatId) {
             },
         };
 
-        const req = require('https').request(url, options, (res) => {
+        const req = require('node:https').request(url, options, (res) => {
             let data = '';
 
             res.on('data', (chunk) => {

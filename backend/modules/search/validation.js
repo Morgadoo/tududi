@@ -35,8 +35,8 @@ function parseSearchParams(query) {
             : [];
 
     const hasPagination = limitParam !== undefined || offsetParam !== undefined;
-    const limit = hasPagination ? parseInt(limitParam, 10) || 20 : 20;
-    const offset = hasPagination ? parseInt(offsetParam, 10) || 0 : 0;
+    const limit = hasPagination ? Number.parseInt(limitParam, 10) || 20 : 20;
+    const offset = hasPagination ? Number.parseInt(offsetParam, 10) || 0 : 0;
 
     return {
         searchQuery,

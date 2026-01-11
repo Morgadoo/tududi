@@ -4,7 +4,7 @@ const usersService = require('./service');
 const { UnauthorizedError } = require('../../shared/errors');
 const { getAuthenticatedUserId } = require('../../utils/request-utils');
 const { logError } = require('../../services/logService');
-const fs = require('fs').promises;
+const fs = require('node:fs').promises;
 
 /**
  * Get authenticated user ID or throw UnauthorizedError.

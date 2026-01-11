@@ -385,8 +385,8 @@ const TagDetails: React.FC = () => {
         if (note.uid) {
             const slug = note.title
                 .toLowerCase()
-                .replace(/[^a-z0-9]+/g, '-')
-                .replace(/^-|-$/g, '');
+                .replaceAll(/[^a-z0-9]+/g, '-')
+                .replaceAll(/(?:^-|-$)/g, '');
             navigate(`/notes/${note.uid}-${slug}`);
         }
     };
@@ -831,12 +831,12 @@ const TagDetails: React.FC = () => {
                                                                     noteProject.uid
                                                                         ? `/project/${noteProject.uid}-${noteProject.name
                                                                               .toLowerCase()
-                                                                              .replace(
+                                                                              .replaceAll(
                                                                                   /[^a-z0-9]+/g,
                                                                                   '-'
                                                                               )
-                                                                              .replace(
-                                                                                  /^-|-$/g,
+                                                                              .replaceAll(
+                                                                                  /(?:^-|-$)/g,
                                                                                   ''
                                                                               )}`
                                                                         : `/project/${noteProject.id}`
@@ -873,12 +873,12 @@ const TagDetails: React.FC = () => {
                                                                                     noteTag.uid
                                                                                         ? `/tag/${noteTag.uid}-${noteTag.name
                                                                                               .toLowerCase()
-                                                                                              .replace(
+                                                                                              .replaceAll(
                                                                                                   /[^a-z0-9]+/g,
                                                                                                   '-'
                                                                                               )
-                                                                                              .replace(
-                                                                                                  /^-|-$/g,
+                                                                                              .replaceAll(
+                                                                                                  /(?:^-|-$)/g,
                                                                                                   ''
                                                                                               )}`
                                                                                         : `/tag/${encodeURIComponent(noteTag.name)}`

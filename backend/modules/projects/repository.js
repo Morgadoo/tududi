@@ -75,7 +75,7 @@ class ProjectsRepository extends BaseRepository {
 
         const uidToCount = {};
         shareCounts.forEach((item) => {
-            uidToCount[item.resource_uid] = parseInt(item.count, 10);
+            uidToCount[item.resource_uid] = Number.parseInt(item.count, 10);
         });
 
         return uidToCount;

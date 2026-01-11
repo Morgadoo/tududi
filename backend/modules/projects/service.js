@@ -54,9 +54,9 @@ async function updateProjectTags(project, tagsData, userId) {
         userId,
         validTagNames
     );
-    const existingTagNames = existingTags.map((tag) => tag.name);
+    const existingTagNames = new Set(existingTags.map((tag) => tag.name));
     const newTagNames = validTagNames.filter(
-        (name) => !existingTagNames.includes(name)
+        (name) => !existingTagNames.has(name)
     );
 
     const createdTags = await Promise.all(

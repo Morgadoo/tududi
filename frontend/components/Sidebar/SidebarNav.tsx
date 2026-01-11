@@ -136,22 +136,11 @@ const SidebarNav: React.FC<SidebarNavProps> = ({
                                         </span>
                                     )}
                                 {link.path === '/tasks?status=active' && (
-                                    <div
-                                        role="button"
-                                        tabIndex={0}
+                                    <button
+                                        type="button"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             openTaskModal();
-                                        }}
-                                        onKeyDown={(e) => {
-                                            if (
-                                                e.key === 'Enter' ||
-                                                e.key === ' '
-                                            ) {
-                                                e.stopPropagation();
-                                                e.preventDefault();
-                                                openTaskModal();
-                                            }
                                         }}
                                         className="text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white focus:outline-none cursor-pointer"
                                         aria-label={t(
@@ -164,7 +153,7 @@ const SidebarNav: React.FC<SidebarNavProps> = ({
                                         )}
                                     >
                                         <PlusCircleIcon className="h-5 w-5" />
-                                    </div>
+                                    </button>
                                 )}
                             </div>
                         </button>

@@ -103,10 +103,10 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
                     style={autoWidth ? dynamicStyles : {}}
                 >
                     <div className="p-1">
-                        {options.map((option, index) =>
+                        {options.map((option) =>
                             option.value === 'divider' ? (
                                 <div
-                                    key={`divider-${index}`}
+                                    key={`divider-${option.label || 'sep'}`}
                                     className="my-1 -mx-1 border-t border-gray-100 dark:border-gray-700"
                                 />
                             ) : (

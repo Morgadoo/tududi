@@ -523,11 +523,13 @@ const TasksToday: React.FC = () => {
                     ];
                     const taskMap = new Map<number, Task>();
                     // Add result.tasks first
-                    (result.tasks || []).forEach((t: Task) =>
-                        taskMap.set(t.id!, t)
-                    );
+                    (result.tasks || []).forEach((t: Task) => {
+                        if (t.id !== undefined) taskMap.set(t.id, t);
+                    });
                     // Then add section tasks (may override with more complete data)
-                    allSectionTasks.forEach((t: Task) => taskMap.set(t.id!, t));
+                    allSectionTasks.forEach((t: Task) => {
+                        if (t.id !== undefined) taskMap.set(t.id, t);
+                    });
                     useStore
                         .getState()
                         .tasksStore.setTasks(Array.from(taskMap.values()));

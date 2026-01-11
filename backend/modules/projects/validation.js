@@ -36,9 +36,10 @@ function formatDate(date) {
     if (!date) return null;
     try {
         const dateObj = new Date(date);
-        if (isNaN(dateObj.getTime())) return null;
+        if (Number.isNaN(dateObj.getTime())) return null;
         return dateObj.toISOString();
-    } catch (error) {
+    } catch {
+        // Invalid date format, return null
         return null;
     }
 }
