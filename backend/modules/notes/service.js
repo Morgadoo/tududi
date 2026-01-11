@@ -43,8 +43,9 @@ function parseTagsFromBody(tags) {
 
 /**
  * Update note tags.
+ * Tags are scoped to the user's profile for proper isolation.
  */
-async function updateNoteTags(note, tagsArray, userId) {
+async function updateNoteTags(note, tagsArray, userId, profileId = null) {
     if (_.isEmpty(tagsArray)) {
         await note.setTags([]);
         return;
@@ -71,11 +72,17 @@ async function updateNoteTags(note, tagsArray, userId) {
         );
     }
 
+    // Build where clause for profile-aware tag lookup
+    const whereBase = { name: undefined, user_id: userId };
+    if (profileId) {
+        whereBase.profile_id = profileId;
+    }
+
     const tags = await Promise.all(
         validTagNames.map(async (name) => {
             const [tag] = await Tag.findOrCreate({
-                where: { name, user_id: userId },
-                defaults: { name, user_id: userId },
+                where: { ...whereBase, name },
+                defaults: { name, user_id: userId, profile_id: profileId },
             });
             return tag;
         })
@@ -125,13 +132,15 @@ class NotesService {
     /**
      * Get all notes for a user with optional filtering.
      */
-    async getAll(userId, options = {}) {
+    async getAll(userId, options = {}, profileId = null) {
         const { orderBy = 'title:asc', tagFilter } = options;
         const [orderColumn, orderDirection] = orderBy.split(':');
 
         const whereClause = await permissionsService.ownershipOrPermissionWhere(
             'note',
-            userId
+            userId,
+            null,
+            profileId
         );
 
         const notes = await notesRepository.findAllWithIncludes(whereClause, {
@@ -171,7 +180,8 @@ class NotesService {
      */
     async create(
         userId,
-        { title, content, project_uid, project_id, tags, color }
+        { title, content, project_uid, project_id, tags, color },
+        profileId = null
     ) {
         const noteAttributes = { title, content };
 
@@ -191,12 +201,13 @@ class NotesService {
 
         const note = await notesRepository.createForUser(
             userId,
-            noteAttributes
+            noteAttributes,
+            profileId
         );
 
         // Handle tags
         const tagNames = parseTagsFromBody(tags);
-        await updateNoteTags(note, tagNames, userId);
+        await updateNoteTags(note, tagNames, userId, profileId);
 
         // Reload with associations
         const noteWithAssociations = await notesRepository.findByIdWithIncludes(
@@ -216,7 +227,8 @@ class NotesService {
     async update(
         userId,
         uid,
-        { title, content, project_uid, project_id, tags, color }
+        { title, content, project_uid, project_id, tags, color },
+        profileId = null
     ) {
         const validatedUid = validateUid(uid);
         const note = await notesRepository.findOne({ uid: validatedUid });
@@ -280,7 +292,7 @@ class NotesService {
         // Handle tags if provided
         if (tags !== undefined) {
             const tagNames = parseTagsFromBody(tags);
-            await updateNoteTags(note, tagNames, userId);
+            await updateNoteTags(note, tagNames, userId, profileId);
         }
 
         // Reload with associations

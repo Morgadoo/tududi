@@ -14,9 +14,13 @@ class AreasRepository extends BaseRepository {
     /**
      * Find all areas for a user, ordered by name.
      */
-    async findAllByUser(userId) {
+    async findAllByUser(userId, profileId = null) {
+        const where = { user_id: userId };
+        if (profileId) {
+            where.profile_id = profileId;
+        }
         return this.model.findAll({
-            where: { user_id: userId },
+            where,
             attributes: LIST_ATTRIBUTES,
             order: [['name', 'ASC']],
         });
@@ -25,24 +29,24 @@ class AreasRepository extends BaseRepository {
     /**
      * Find an area by UID for a specific user.
      */
-    async findByUid(userId, uid) {
-        return this.model.findOne({
-            where: {
-                uid,
-                user_id: userId,
-            },
-        });
+    async findByUid(userId, uid, profileId = null) {
+        const where = { uid, user_id: userId };
+        if (profileId) {
+            where.profile_id = profileId;
+        }
+        return this.model.findOne({ where });
     }
 
     /**
      * Find an area by UID with public attributes only.
      */
-    async findByUidPublic(userId, uid) {
+    async findByUidPublic(userId, uid, profileId = null) {
+        const where = { uid, user_id: userId };
+        if (profileId) {
+            where.profile_id = profileId;
+        }
         return this.model.findOne({
-            where: {
-                uid,
-                user_id: userId,
-            },
+            where,
             attributes: PUBLIC_ATTRIBUTES,
         });
     }
@@ -50,11 +54,12 @@ class AreasRepository extends BaseRepository {
     /**
      * Create a new area for a user.
      */
-    async createForUser(userId, { name, description }) {
+    async createForUser(userId, { name, description, profile_id }) {
         return this.model.create({
             name,
             description: description || '',
             user_id: userId,
+            profile_id: profile_id || null,
         });
     }
 }

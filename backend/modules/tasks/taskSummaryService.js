@@ -144,63 +144,93 @@ const calculateNextRunTime = (user, fromTime = new Date()) => {
 const fetchUser = async (userId) => await User.findByPk(userId);
 
 // Side effect function to fetch due today tasks
-const fetchDueTodayTasks = async (userId, today, tomorrow) =>
-    await Task.findAll({
-        where: {
-            user_id: userId,
-            due_date: {
-                [Op.gte]: today,
-                [Op.lt]: tomorrow,
-            },
-            status: { [Op.ne]: 2 }, // not done
+const fetchDueTodayTasks = async (
+    userId,
+    today,
+    tomorrow,
+    profileId = null
+) => {
+    const where = {
+        user_id: userId,
+        due_date: {
+            [Op.gte]: today,
+            [Op.lt]: tomorrow,
         },
+        status: { [Op.ne]: 2 }, // not done
+    };
+    if (profileId) {
+        where.profile_id = profileId;
+    }
+    return await Task.findAll({
+        where,
         include: [{ model: Project, attributes: ['name'] }],
         order: [['name', 'ASC']],
     });
+};
 
 // Side effect function to fetch in progress tasks
-const fetchInProgressTasks = async (userId) =>
-    await Task.findAll({
-        where: {
-            user_id: userId,
-            status: 1, // in_progress
-        },
+const fetchInProgressTasks = async (userId, profileId = null) => {
+    const where = {
+        user_id: userId,
+        status: 1, // in_progress
+    };
+    if (profileId) {
+        where.profile_id = profileId;
+    }
+    return await Task.findAll({
+        where,
         include: [{ model: Project, attributes: ['name'] }],
         order: [['name', 'ASC']],
     });
+};
 
 // Side effect function to fetch completed today tasks
-const fetchCompletedTodayTasks = async (userId, today, tomorrow) =>
-    await Task.findAll({
-        where: {
-            user_id: userId,
-            status: 2, // done
-            parent_task_id: null,
-            updated_at: {
-                [Op.gte]: today,
-                [Op.lt]: tomorrow,
-            },
+const fetchCompletedTodayTasks = async (
+    userId,
+    today,
+    tomorrow,
+    profileId = null
+) => {
+    const where = {
+        user_id: userId,
+        status: 2, // done
+        parent_task_id: null,
+        updated_at: {
+            [Op.gte]: today,
+            [Op.lt]: tomorrow,
         },
+    };
+    if (profileId) {
+        where.profile_id = profileId;
+    }
+    return await Task.findAll({
+        where,
         include: [{ model: Project, attributes: ['name'] }],
         order: [['name', 'ASC']],
     });
+};
 
 // Side effect function to fetch suggested tasks
-const fetchSuggestedTasks = async (userId, excludedIds) => {
+const fetchSuggestedTasks = async (userId, excludedIds, profileId = null) => {
     // Create date limit for suggested tasks (30 days from now)
     const maxSuggestionDate = new Date();
     maxSuggestionDate.setDate(maxSuggestionDate.getDate() + 30);
 
+    const where = {
+        user_id: userId,
+        status: { [Op.ne]: 2 }, // not done
+        id: { [Op.notIn]: excludedIds },
+        [Op.or]: [
+            { due_date: null }, // tasks without due dates
+            { due_date: { [Op.lte]: maxSuggestionDate } }, // tasks due within 30 days
+        ],
+    };
+    if (profileId) {
+        where.profile_id = profileId;
+    }
+
     return await Task.findAll({
-        where: {
-            user_id: userId,
-            status: { [Op.ne]: 2 }, // not done
-            id: { [Op.notIn]: excludedIds },
-            [Op.or]: [
-                { due_date: null }, // tasks without due dates
-                { due_date: { [Op.lte]: maxSuggestionDate } }, // tasks due within 30 days
-            ],
-        },
+        where,
         include: [{ model: Project, attributes: ['name'] }],
         order: [
             ['priority', 'DESC'],
@@ -236,6 +266,7 @@ const updateUserTracking = async (user, lastRun, nextRun) =>
     });
 
 // Function to generate summary for user (contains side effects)
+// Scoped to the user's active profile for relevant task summary
 const generateSummaryForUser = async (userId) => {
     try {
         const user = await fetchUser(userId);
@@ -243,11 +274,14 @@ const generateSummaryForUser = async (userId) => {
 
         const { today, tomorrow } = createTodayDateRange();
 
-        // Fetch all task data in parallel
+        // Use user's active profile to scope the summary
+        const profileId = user.active_profile_id || null;
+
+        // Fetch all task data in parallel (scoped to active profile)
         const [dueToday, inProgress, completedToday] = await Promise.all([
-            fetchDueTodayTasks(userId, today, tomorrow),
-            fetchInProgressTasks(userId),
-            fetchCompletedTodayTasks(userId, today, tomorrow),
+            fetchDueTodayTasks(userId, today, tomorrow, profileId),
+            fetchInProgressTasks(userId, profileId),
+            fetchCompletedTodayTasks(userId, today, tomorrow, profileId),
         ]);
 
         // Get suggested tasks (excluding already fetched ones)
@@ -255,7 +289,11 @@ const generateSummaryForUser = async (userId) => {
             ...dueToday.map((t) => t.id),
             ...inProgress.map((t) => t.id),
         ];
-        const suggestedTasks = await fetchSuggestedTasks(userId, excludedIds);
+        const suggestedTasks = await fetchSuggestedTasks(
+            userId,
+            excludedIds,
+            profileId
+        );
 
         // Build task sections
         const taskSections = {

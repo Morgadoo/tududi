@@ -28,7 +28,12 @@ const projectsController = {
     async list(req, res, next) {
         try {
             const userId = requireUserId(req);
-            const result = await projectsService.getAll(userId, req.query);
+            const profileId = req.activeProfileId;
+            const result = await projectsService.getAll(
+                userId,
+                req.query,
+                profileId
+            );
             res.json(result);
         } catch (error) {
             next(error);
@@ -56,7 +61,12 @@ const projectsController = {
     async create(req, res, next) {
         try {
             const userId = requireUserId(req);
-            const project = await projectsService.create(userId, req.body);
+            const profileId = req.activeProfileId;
+            const project = await projectsService.create(
+                userId,
+                req.body,
+                profileId
+            );
             res.status(201).json(project);
         } catch (error) {
             next(error);
@@ -70,10 +80,12 @@ const projectsController = {
     async update(req, res, next) {
         try {
             const userId = requireUserId(req);
+            const profileId = req.activeProfileId;
             const project = await projectsService.update(
                 userId,
                 req.params.uid,
-                req.body
+                req.body,
+                profileId
             );
             res.json(project);
         } catch (error) {

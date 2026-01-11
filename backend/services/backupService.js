@@ -1,6 +1,7 @@
 const {
     sequelize,
     User,
+    Profile,
     Area,
     Project,
     Task,
@@ -86,9 +87,10 @@ function checkVersionCompatibility(backupVersion) {
 /**
  * Export all data for a specific user
  * @param {number} userId - The user ID to export data for
+ * @param {number|null} profileId - Optional profile ID to scope export (null = all profiles)
  * @returns {Promise<object>} - The backup data as JSON
  */
-async function exportUserData(userId) {
+async function exportUserData(userId, profileId = null) {
     try {
         // Fetch user with all preferences (exclude sensitive data)
         const user = await User.findByPk(userId, {
@@ -106,7 +108,27 @@ async function exportUserData(userId) {
             throw new Error('User not found');
         }
 
-        // Fetch all user-owned entities
+        // Build where clause - optionally scoped to profile
+        const baseWhere = { user_id: userId };
+        const profileWhere = profileId
+            ? { user_id: userId, profile_id: profileId }
+            : baseWhere;
+
+        // Fetch profile info if exporting single profile
+        let profileInfo = null;
+        if (profileId) {
+            const profile = await Profile.findByPk(profileId);
+            if (profile && profile.user_id === userId) {
+                profileInfo = {
+                    uid: profile.uid,
+                    name: profile.name,
+                    icon: profile.icon,
+                    color: profile.color,
+                };
+            }
+        }
+
+        // Fetch all user-owned entities (scoped to profile if specified)
         const [
             areas,
             projects,
@@ -117,9 +139,9 @@ async function exportUserData(userId) {
             taskEvents,
             views,
         ] = await Promise.all([
-            Area.findAll({ where: { user_id: userId } }),
+            Area.findAll({ where: profileWhere }),
             Project.findAll({
-                where: { user_id: userId },
+                where: profileWhere,
                 include: [
                     {
                         model: Tag,
@@ -129,7 +151,7 @@ async function exportUserData(userId) {
                 ],
             }),
             Task.findAll({
-                where: { user_id: userId },
+                where: profileWhere,
                 include: [
                     {
                         model: Tag,
@@ -146,9 +168,9 @@ async function exportUserData(userId) {
                     },
                 ],
             }),
-            Tag.findAll({ where: { user_id: userId } }),
+            Tag.findAll({ where: profileWhere }),
             Note.findAll({
-                where: { user_id: userId },
+                where: profileWhere,
                 include: [
                     {
                         model: Tag,
@@ -157,15 +179,17 @@ async function exportUserData(userId) {
                     },
                 ],
             }),
-            InboxItem.findAll({ where: { user_id: userId } }),
-            TaskEvent.findAll({ where: { user_id: userId } }),
-            View.findAll({ where: { user_id: userId } }),
+            InboxItem.findAll({ where: profileWhere }),
+            TaskEvent.findAll({ where: baseWhere }), // TaskEvents don't have profile_id
+            View.findAll({ where: profileWhere }),
         ]);
 
         // Build the backup object
         const backup = {
             version: packageJson.version,
             exported_at: new Date().toISOString(),
+            scope: profileId ? 'profile' : 'all', // Indicates if this is a profile-scoped or full backup
+            profile: profileInfo, // Profile metadata (null if full backup)
             user: {
                 uid: user.uid,
                 email: user.email,
@@ -241,9 +265,14 @@ async function exportUserData(userId) {
  * @param {object} backupData - The backup data to import
  * @param {object} options - Import options
  * @param {boolean} options.merge - If true, merge with existing data (default: true)
+ * @param {number|null} options.targetProfileId - Profile ID to import data into (null = use original profile_id or active profile)
  * @returns {Promise<object>} - Import statistics
  */
-async function importUserData(userId, backupData, options = { merge: true }) {
+async function importUserData(
+    userId,
+    backupData,
+    options = { merge: true, targetProfileId: null }
+) {
     const transaction = await sequelize.transaction();
 
     try {
@@ -258,6 +287,22 @@ async function importUserData(userId, backupData, options = { merge: true }) {
             throw new Error('User not found');
         }
 
+        // Determine target profile for import
+        let targetProfileId = options.targetProfileId;
+        if (!targetProfileId && user.active_profile_id) {
+            targetProfileId = user.active_profile_id;
+        }
+
+        // Validate target profile belongs to user
+        if (targetProfileId) {
+            const profile = await Profile.findByPk(targetProfileId, {
+                transaction,
+            });
+            if (!profile || profile.user_id !== userId) {
+                throw new Error('Invalid target profile');
+            }
+        }
+
         const stats = {
             areas: { created: 0, skipped: 0 },
             projects: { created: 0, skipped: 0 },
@@ -266,6 +311,7 @@ async function importUserData(userId, backupData, options = { merge: true }) {
             notes: { created: 0, skipped: 0 },
             inbox_items: { created: 0, skipped: 0 },
             views: { created: 0, skipped: 0 },
+            targetProfile: targetProfileId ? true : false,
         };
 
         // Map to track old UIDs to new IDs for foreign key relationships
@@ -294,6 +340,8 @@ async function importUserData(userId, backupData, options = { merge: true }) {
                             uid: tagData.uid,
                             name: tagData.name,
                             user_id: userId,
+                            profile_id:
+                                targetProfileId || tagData.profile_id || null,
                         },
                         { transaction }
                     );
@@ -321,6 +369,8 @@ async function importUserData(userId, backupData, options = { merge: true }) {
                             name: areaData.name,
                             description: areaData.description,
                             user_id: userId,
+                            profile_id:
+                                targetProfileId || areaData.profile_id || null,
                         },
                         { transaction }
                     );
@@ -367,6 +417,10 @@ async function importUserData(userId, backupData, options = { merge: true }) {
                             status: projectData.status || projectData.state,
                             user_id: userId,
                             area_id: areaId,
+                            profile_id:
+                                targetProfileId ||
+                                projectData.profile_id ||
+                                null,
                         },
                         { transaction }
                     );
@@ -434,6 +488,8 @@ async function importUserData(userId, backupData, options = { merge: true }) {
                             completed_at: taskData.completed_at,
                             user_id: userId,
                             project_id: projectId,
+                            profile_id:
+                                targetProfileId || taskData.profile_id || null,
                         },
                         { transaction }
                     );
@@ -563,6 +619,8 @@ async function importUserData(userId, backupData, options = { merge: true }) {
                             color: noteData.color,
                             user_id: userId,
                             project_id: projectId,
+                            profile_id:
+                                targetProfileId || noteData.profile_id || null,
                         },
                         { transaction }
                     );
@@ -599,6 +657,8 @@ async function importUserData(userId, backupData, options = { merge: true }) {
                             content: inboxData.content,
                             status: inboxData.status,
                             user_id: userId,
+                            profile_id:
+                                targetProfileId || inboxData.profile_id || null,
                         },
                         { transaction }
                     );
@@ -632,6 +692,8 @@ async function importUserData(userId, backupData, options = { merge: true }) {
                             recurring: viewData.recurring,
                             is_pinned: viewData.is_pinned,
                             user_id: userId,
+                            profile_id:
+                                targetProfileId || viewData.profile_id || null,
                         },
                         { transaction }
                     );

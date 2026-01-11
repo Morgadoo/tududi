@@ -28,17 +28,35 @@ module.exports = (sequelize) => {
                     key: 'id',
                 },
             },
+            profile_id: {
+                type: DataTypes.INTEGER,
+                allowNull: true,
+                references: {
+                    model: 'profiles',
+                    key: 'id',
+                },
+            },
         },
         {
             tableName: 'tags',
             indexes: [
                 {
                     fields: ['user_id'],
+                    name: 'tags_user_id',
                 },
                 {
+                    fields: ['profile_id'],
+                    name: 'tags_profile_id',
+                },
+                {
+                    fields: ['user_id', 'profile_id'],
+                    name: 'tags_user_id_profile_id',
+                },
+                {
+                    // Tags are unique per profile - allows same tag name in different profiles
                     unique: true,
-                    fields: ['user_id', 'name'],
-                    name: 'tags_user_id_name_unique',
+                    fields: ['user_id', 'profile_id', 'name'],
+                    name: 'tags_user_profile_name_unique',
                 },
             ],
         }

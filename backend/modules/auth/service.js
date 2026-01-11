@@ -1,6 +1,6 @@
 'use strict';
 
-const { User, sequelize } = require('../../models');
+const { User, Profile, sequelize } = require('../../models');
 const { isAdmin } = require('../../services/rolesService');
 const { logError } = require('../../services/logService');
 const { getConfig } = require('../../config/config');
@@ -125,10 +125,58 @@ class AuthService {
                     'appearance',
                     'timezone',
                     'avatar_image',
+                    'active_profile_id',
                 ],
             });
             if (user) {
                 const admin = await isAdmin(user.uid);
+
+                // Get profiles for the user
+                const profiles = await Profile.findAll({
+                    where: { user_id: session.userId },
+                    attributes: [
+                        'uid',
+                        'name',
+                        'icon',
+                        'color',
+                        'is_default',
+                        'order',
+                    ],
+                    order: [
+                        ['order', 'ASC'],
+                        ['name', 'ASC'],
+                    ],
+                });
+
+                // Get active profile
+                let activeProfile = null;
+                if (user.active_profile_id) {
+                    activeProfile = await Profile.findByPk(
+                        user.active_profile_id,
+                        {
+                            attributes: [
+                                'uid',
+                                'name',
+                                'icon',
+                                'color',
+                                'is_default',
+                                'order',
+                            ],
+                        }
+                    );
+                }
+
+                // If no active profile but profiles exist, use the default or first one
+                if (!activeProfile && profiles.length > 0) {
+                    activeProfile =
+                        profiles.find((p) => p.is_default) || profiles[0];
+                    // Update user's active_profile_id
+                    await User.update(
+                        { active_profile_id: activeProfile.id },
+                        { where: { id: session.userId } }
+                    );
+                }
+
                 return {
                     user: {
                         uid: user.uid,
@@ -141,11 +189,29 @@ class AuthService {
                         avatar_image: user.avatar_image,
                         is_admin: admin,
                     },
+                    profiles: profiles.map((p) => ({
+                        uid: p.uid,
+                        name: p.name,
+                        icon: p.icon,
+                        color: p.color,
+                        isDefault: p.is_default,
+                        order: p.order,
+                    })),
+                    activeProfile: activeProfile
+                        ? {
+                              uid: activeProfile.uid,
+                              name: activeProfile.name,
+                              icon: activeProfile.icon,
+                              color: activeProfile.color,
+                              isDefault: activeProfile.is_default,
+                              order: activeProfile.order,
+                          }
+                        : null,
                 };
             }
         }
 
-        return { user: null };
+        return { user: null, profiles: [], activeProfile: null };
     }
 
     async login(email, password, session) {
@@ -184,6 +250,42 @@ class AuthService {
         });
 
         const admin = await isAdmin(user.uid);
+
+        // Get profiles for the user
+        const profiles = await Profile.findAll({
+            where: { user_id: user.id },
+            attributes: ['uid', 'name', 'icon', 'color', 'is_default', 'order'],
+            order: [
+                ['order', 'ASC'],
+                ['name', 'ASC'],
+            ],
+        });
+
+        // Get active profile
+        let activeProfile = null;
+        if (user.active_profile_id) {
+            activeProfile = await Profile.findByPk(user.active_profile_id, {
+                attributes: [
+                    'uid',
+                    'name',
+                    'icon',
+                    'color',
+                    'is_default',
+                    'order',
+                ],
+            });
+        }
+
+        // If no active profile but profiles exist, use the default or first one
+        if (!activeProfile && profiles.length > 0) {
+            activeProfile = profiles.find((p) => p.is_default) || profiles[0];
+            // Update user's active_profile_id
+            await User.update(
+                { active_profile_id: activeProfile.id },
+                { where: { id: user.id } }
+            );
+        }
+
         return {
             user: {
                 uid: user.uid,
@@ -196,6 +298,24 @@ class AuthService {
                 avatar_image: user.avatar_image,
                 is_admin: admin,
             },
+            profiles: profiles.map((p) => ({
+                uid: p.uid,
+                name: p.name,
+                icon: p.icon,
+                color: p.color,
+                isDefault: p.is_default,
+                order: p.order,
+            })),
+            activeProfile: activeProfile
+                ? {
+                      uid: activeProfile.uid,
+                      name: activeProfile.name,
+                      icon: activeProfile.icon,
+                      color: activeProfile.color,
+                      isDefault: activeProfile.is_default,
+                      order: activeProfile.order,
+                  }
+                : null,
         };
     }
 

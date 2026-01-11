@@ -95,9 +95,14 @@ async function getAccess(userId, resourceType, resourceUid) {
     return perm ? perm.access_level : ACCESS.NONE;
 }
 
-async function ownershipOrPermissionWhere(resourceType, userId, cache = null) {
+async function ownershipOrPermissionWhere(
+    resourceType,
+    userId,
+    cache = null,
+    profileId = null
+) {
     // Check cache first (request-scoped)
-    const cacheKey = `permission_${resourceType}_${userId}`;
+    const cacheKey = `permission_${resourceType}_${userId}_${profileId || 'all'}`;
     if (cache && cache.has(cacheKey)) {
         return cache.get(cacheKey);
     }
@@ -151,13 +156,21 @@ async function ownershipOrPermissionWhere(resourceType, userId, cache = null) {
             conditions.push({ project_id: { [Op.in]: sharedProjectIds } }); // Items in shared projects
         }
 
-        const result = { [Op.or]: conditions };
+        let result = { [Op.or]: conditions };
+
+        // Add profile filter if profileId is provided
+        if (profileId) {
+            result = {
+                [Op.and]: [result, { profile_id: profileId }],
+            };
+        }
+
         if (cache) cache.set(cacheKey, result);
         return result;
     }
 
-    // For other resource types (projects, etc.), use the original logic
-    const result = {
+    // For other resource types (projects, areas, tags, etc.), use the original logic
+    let result = {
         [Op.or]: [
             { user_id: userId },
             sharedUids.length
@@ -165,6 +178,14 @@ async function ownershipOrPermissionWhere(resourceType, userId, cache = null) {
                 : { uid: null },
         ],
     };
+
+    // Add profile filter if profileId is provided
+    if (profileId) {
+        result = {
+            [Op.and]: [result, { profile_id: profileId }],
+        };
+    }
+
     if (cache) cache.set(cacheKey, result);
     return result;
 }

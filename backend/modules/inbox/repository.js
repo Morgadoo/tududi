@@ -21,12 +21,17 @@ class InboxRepository extends BaseRepository {
     /**
      * Find all active inbox items for a user (status = 'added').
      */
-    async findAllActive(userId, { limit, offset } = {}) {
+    async findAllActive(userId, { limit, offset, profileId } = {}) {
+        const where = {
+            user_id: userId,
+            status: 'added',
+        };
+        if (profileId) {
+            where.profile_id = profileId;
+        }
+
         const options = {
-            where: {
-                user_id: userId,
-                status: 'added',
-            },
+            where,
             order: [['created_at', 'DESC']],
         };
 
@@ -41,12 +46,16 @@ class InboxRepository extends BaseRepository {
     /**
      * Count active inbox items for a user.
      */
-    async countActive(userId) {
+    async countActive(userId, profileId = null) {
+        const where = {
+            user_id: userId,
+            status: 'added',
+        };
+        if (profileId) {
+            where.profile_id = profileId;
+        }
         return this.model.count({
-            where: {
-                user_id: userId,
-                status: 'added',
-            },
+            where,
             raw: true,
         });
     }
@@ -54,24 +63,30 @@ class InboxRepository extends BaseRepository {
     /**
      * Find an inbox item by UID for a specific user.
      */
-    async findByUid(userId, uid) {
-        return this.model.findOne({
-            where: {
-                uid,
-                user_id: userId,
-            },
-        });
+    async findByUid(userId, uid, profileId = null) {
+        const where = {
+            uid,
+            user_id: userId,
+        };
+        if (profileId) {
+            where.profile_id = profileId;
+        }
+        return this.model.findOne({ where });
     }
 
     /**
      * Find an inbox item by UID with limited public attributes.
      */
-    async findByUidPublic(userId, uid) {
+    async findByUidPublic(userId, uid, profileId = null) {
+        const where = {
+            uid,
+            user_id: userId,
+        };
+        if (profileId) {
+            where.profile_id = profileId;
+        }
         return this.model.findOne({
-            where: {
-                uid,
-                user_id: userId,
-            },
+            where,
             attributes: PUBLIC_ATTRIBUTES,
         });
     }
@@ -79,12 +94,13 @@ class InboxRepository extends BaseRepository {
     /**
      * Create a new inbox item for a user.
      */
-    async createForUser(userId, { content, title, source }) {
+    async createForUser(userId, { content, title, source }, profileId = null) {
         return this.model.create({
             content,
             title,
             source,
             user_id: userId,
+            profile_id: profileId,
         });
     }
 

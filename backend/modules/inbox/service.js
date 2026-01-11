@@ -17,7 +17,7 @@ class InboxService {
      * Get all active inbox items for a user.
      * Supports pagination if limit/offset provided.
      */
-    async getAll(userId, { limit, offset } = {}) {
+    async getAll(userId, { limit, offset } = {}, profileId = null) {
         const hasPagination = limit !== undefined || offset !== undefined;
 
         if (hasPagination) {
@@ -28,8 +28,9 @@ class InboxService {
                 inboxRepository.findAllActive(userId, {
                     limit: parsedLimit,
                     offset: parsedOffset,
+                    profileId,
                 }),
-                inboxRepository.countActive(userId),
+                inboxRepository.countActive(userId, profileId),
             ]);
 
             return {
@@ -44,16 +45,20 @@ class InboxService {
         }
 
         // Return simple array for backward compatibility
-        return inboxRepository.findAllActive(userId);
+        return inboxRepository.findAllActive(userId, { profileId });
     }
 
     /**
      * Get a single inbox item by UID.
      */
-    async getByUid(userId, uid) {
+    async getByUid(userId, uid, profileId = null) {
         validateUid(uid);
 
-        const item = await inboxRepository.findByUidPublic(userId, uid);
+        const item = await inboxRepository.findByUidPublic(
+            userId,
+            uid,
+            profileId
+        );
 
         if (!item) {
             throw new NotFoundError('Inbox item not found.');
@@ -65,16 +70,20 @@ class InboxService {
     /**
      * Create a new inbox item.
      */
-    async create(userId, { content, source }) {
+    async create(userId, { content, source }, profileId = null) {
         const validatedContent = validateContent(content);
         const validatedSource = validateSource(source);
         const title = buildTitleFromContent(validatedContent);
 
-        const item = await inboxRepository.createForUser(userId, {
-            content: validatedContent,
-            title,
-            source: validatedSource,
-        });
+        const item = await inboxRepository.createForUser(
+            userId,
+            {
+                content: validatedContent,
+                title,
+                source: validatedSource,
+            },
+            profileId
+        );
 
         return _.pick(item, PUBLIC_ATTRIBUTES);
     }
@@ -82,10 +91,10 @@ class InboxService {
     /**
      * Update an inbox item.
      */
-    async update(userId, uid, { content, status }) {
+    async update(userId, uid, { content, status }, profileId = null) {
         validateUid(uid);
 
-        const item = await inboxRepository.findByUid(userId, uid);
+        const item = await inboxRepository.findByUid(userId, uid, profileId);
 
         if (!item) {
             throw new NotFoundError('Inbox item not found.');
@@ -111,10 +120,10 @@ class InboxService {
     /**
      * Soft delete an inbox item.
      */
-    async delete(userId, uid) {
+    async delete(userId, uid, profileId = null) {
         validateUid(uid);
 
-        const item = await inboxRepository.findByUid(userId, uid);
+        const item = await inboxRepository.findByUid(userId, uid, profileId);
 
         if (!item) {
             throw new NotFoundError('Inbox item not found.');
@@ -128,10 +137,10 @@ class InboxService {
     /**
      * Mark an inbox item as processed.
      */
-    async process(userId, uid) {
+    async process(userId, uid, profileId = null) {
         validateUid(uid);
 
-        const item = await inboxRepository.findByUid(userId, uid);
+        const item = await inboxRepository.findByUid(userId, uid, profileId);
 
         if (!item) {
             throw new NotFoundError('Inbox item not found.');

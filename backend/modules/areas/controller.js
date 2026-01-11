@@ -16,6 +16,13 @@ function requireUserId(req) {
 }
 
 /**
+ * Get active profile ID from request (set by auth middleware).
+ */
+function getProfileId(req) {
+    return req.activeProfileId || null;
+}
+
+/**
  * Areas controller - handles HTTP requests/responses.
  */
 const areasController = {
@@ -26,7 +33,8 @@ const areasController = {
     async list(req, res, next) {
         try {
             const userId = requireUserId(req);
-            const areas = await areasService.getAll(userId);
+            const profileId = getProfileId(req);
+            const areas = await areasService.getAll(userId, profileId);
             res.json(areas);
         } catch (error) {
             next(error);
@@ -40,8 +48,9 @@ const areasController = {
     async getOne(req, res, next) {
         try {
             const userId = requireUserId(req);
+            const profileId = getProfileId(req);
             const { uid } = req.params;
-            const area = await areasService.getByUid(userId, uid);
+            const area = await areasService.getByUid(userId, uid, profileId);
             res.json(area);
         } catch (error) {
             next(error);
@@ -55,10 +64,12 @@ const areasController = {
     async create(req, res, next) {
         try {
             const userId = requireUserId(req);
+            const profileId = getProfileId(req);
             const { name, description } = req.body;
             const area = await areasService.create(userId, {
                 name,
                 description,
+                profile_id: profileId,
             });
             res.status(201).json(area);
         } catch (error) {
@@ -73,12 +84,18 @@ const areasController = {
     async update(req, res, next) {
         try {
             const userId = requireUserId(req);
+            const profileId = getProfileId(req);
             const { uid } = req.params;
             const { name, description } = req.body;
-            const area = await areasService.update(userId, uid, {
-                name,
-                description,
-            });
+            const area = await areasService.update(
+                userId,
+                uid,
+                {
+                    name,
+                    description,
+                },
+                profileId
+            );
             res.json(area);
         } catch (error) {
             next(error);
@@ -92,8 +109,9 @@ const areasController = {
     async delete(req, res, next) {
         try {
             const userId = requireUserId(req);
+            const profileId = getProfileId(req);
             const { uid } = req.params;
-            await areasService.delete(userId, uid);
+            await areasService.delete(userId, uid, profileId);
             res.status(204).send();
         } catch (error) {
             next(error);

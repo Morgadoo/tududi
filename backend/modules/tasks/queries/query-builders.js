@@ -11,12 +11,14 @@ async function filterTasksByParams(
     params,
     userId,
     userTimezone,
-    permissionCache = null
+    permissionCache = null,
+    profileId = null
 ) {
     const ownedOrShared = await permissionsService.ownershipOrPermissionWhere(
         'task',
         userId,
-        permissionCache
+        permissionCache,
+        profileId
     );
     if (params.type === 'upcoming') {
         params = { ...params };

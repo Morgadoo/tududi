@@ -51,6 +51,7 @@ if (dbConfig.dialect === 'sqlite') {
 }
 
 const User = require('./user')(sequelize);
+const Profile = require('./profile')(sequelize);
 const Area = require('./area')(sequelize);
 const Project = require('./project')(sequelize);
 const Task = require('./task')(sequelize);
@@ -68,6 +69,38 @@ const Notification = require('./notification')(sequelize);
 const RecurringCompletion = require('./recurringCompletion')(sequelize);
 const TaskAttachment = require('./task_attachment')(sequelize);
 const Backup = require('./backup')(sequelize);
+
+// Profile associations
+User.hasMany(Profile, { foreignKey: 'user_id', as: 'Profiles' });
+Profile.belongsTo(User, { foreignKey: 'user_id' });
+
+// User active profile
+User.belongsTo(Profile, {
+    as: 'ActiveProfile',
+    foreignKey: 'active_profile_id',
+});
+
+// Profile -> Entity associations
+Profile.hasMany(Area, { foreignKey: 'profile_id' });
+Area.belongsTo(Profile, { foreignKey: 'profile_id' });
+
+Profile.hasMany(Project, { foreignKey: 'profile_id' });
+Project.belongsTo(Profile, { foreignKey: 'profile_id' });
+
+Profile.hasMany(Task, { foreignKey: 'profile_id' });
+Task.belongsTo(Profile, { foreignKey: 'profile_id' });
+
+Profile.hasMany(Tag, { foreignKey: 'profile_id' });
+Tag.belongsTo(Profile, { foreignKey: 'profile_id' });
+
+Profile.hasMany(Note, { foreignKey: 'profile_id' });
+Note.belongsTo(Profile, { foreignKey: 'profile_id' });
+
+Profile.hasMany(InboxItem, { foreignKey: 'profile_id' });
+InboxItem.belongsTo(Profile, { foreignKey: 'profile_id' });
+
+Profile.hasMany(View, { foreignKey: 'profile_id' });
+View.belongsTo(Profile, { foreignKey: 'profile_id' });
 
 User.hasMany(Area, { foreignKey: 'user_id' });
 Area.belongsTo(User, { foreignKey: 'user_id' });
@@ -191,6 +224,7 @@ Backup.belongsTo(User, { foreignKey: 'user_id', as: 'User' });
 module.exports = {
     sequelize,
     User,
+    Profile,
     Area,
     Project,
     Task,

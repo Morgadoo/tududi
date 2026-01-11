@@ -41,6 +41,14 @@ module.exports = (sequelize) => {
                     key: 'id',
                 },
             },
+            profile_id: {
+                type: DataTypes.INTEGER,
+                allowNull: true,
+                references: {
+                    model: 'profiles',
+                    key: 'id',
+                },
+            },
             suggested_type: {
                 type: DataTypes.STRING,
                 allowNull: true,
@@ -67,6 +75,12 @@ module.exports = (sequelize) => {
             indexes: [
                 {
                     fields: ['user_id'],
+                },
+                {
+                    fields: ['profile_id'],
+                },
+                {
+                    fields: ['user_id', 'profile_id'],
                 },
             ],
         }

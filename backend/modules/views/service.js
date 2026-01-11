@@ -5,23 +5,27 @@ const { validateName } = require('./validation');
 const { NotFoundError } = require('../../shared/errors');
 
 class ViewsService {
-    async getAll(userId) {
-        return viewsRepository.findAllByUser(userId);
+    async getAll(userId, profileId = null) {
+        return viewsRepository.findAllByUser(userId, profileId);
     }
 
-    async getPinned(userId) {
-        return viewsRepository.findPinnedByUser(userId);
+    async getPinned(userId, profileId = null) {
+        return viewsRepository.findPinnedByUser(userId, profileId);
     }
 
-    async getByUid(userId, uid) {
-        const view = await viewsRepository.findByUidAndUser(uid, userId);
+    async getByUid(userId, uid, profileId = null) {
+        const view = await viewsRepository.findByUidAndUser(
+            uid,
+            userId,
+            profileId
+        );
         if (!view) {
             throw new NotFoundError('View not found');
         }
         return view;
     }
 
-    async create(userId, data) {
+    async create(userId, data, profileId = null) {
         const {
             name,
             search_query,
@@ -36,22 +40,30 @@ class ViewsService {
 
         const validatedName = validateName(name);
 
-        return viewsRepository.createForUser(userId, {
-            name: validatedName,
-            search_query: search_query || null,
-            filters: filters || [],
-            priority: priority || null,
-            due: due || null,
-            defer: defer || null,
-            tags: tags || [],
-            extras: extras || [],
-            recurring: recurring || null,
-            is_pinned: false,
-        });
+        return viewsRepository.createForUser(
+            userId,
+            {
+                name: validatedName,
+                search_query: search_query || null,
+                filters: filters || [],
+                priority: priority || null,
+                due: due || null,
+                defer: defer || null,
+                tags: tags || [],
+                extras: extras || [],
+                recurring: recurring || null,
+                is_pinned: false,
+            },
+            profileId
+        );
     }
 
-    async update(userId, uid, data) {
-        const view = await viewsRepository.findByUidAndUser(uid, userId);
+    async update(userId, uid, data, profileId = null) {
+        const view = await viewsRepository.findByUidAndUser(
+            uid,
+            userId,
+            profileId
+        );
         if (!view) {
             throw new NotFoundError('View not found');
         }
@@ -85,8 +97,12 @@ class ViewsService {
         return view;
     }
 
-    async delete(userId, uid) {
-        const view = await viewsRepository.findByUidAndUser(uid, userId);
+    async delete(userId, uid, profileId = null) {
+        const view = await viewsRepository.findByUidAndUser(
+            uid,
+            userId,
+            profileId
+        );
         if (!view) {
             throw new NotFoundError('View not found');
         }

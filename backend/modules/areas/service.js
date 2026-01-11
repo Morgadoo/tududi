@@ -10,17 +10,21 @@ class AreasService {
     /**
      * Get all areas for a user.
      */
-    async getAll(userId) {
-        return areasRepository.findAllByUser(userId);
+    async getAll(userId, profileId = null) {
+        return areasRepository.findAllByUser(userId, profileId);
     }
 
     /**
      * Get a single area by UID.
      */
-    async getByUid(userId, uid) {
+    async getByUid(userId, uid, profileId = null) {
         validateUid(uid);
 
-        const area = await areasRepository.findByUidPublic(userId, uid);
+        const area = await areasRepository.findByUidPublic(
+            userId,
+            uid,
+            profileId
+        );
 
         if (!area) {
             throw new NotFoundError(
@@ -34,12 +38,13 @@ class AreasService {
     /**
      * Create a new area.
      */
-    async create(userId, { name, description }) {
+    async create(userId, { name, description, profile_id }) {
         const validatedName = validateName(name);
 
         const area = await areasRepository.createForUser(userId, {
             name: validatedName,
             description,
+            profile_id,
         });
 
         return _.pick(area, PUBLIC_ATTRIBUTES);
@@ -48,10 +53,10 @@ class AreasService {
     /**
      * Update an area.
      */
-    async update(userId, uid, { name, description }) {
+    async update(userId, uid, { name, description }, profileId = null) {
         validateUid(uid);
 
-        const area = await areasRepository.findByUid(userId, uid);
+        const area = await areasRepository.findByUid(userId, uid, profileId);
 
         if (!area) {
             throw new NotFoundError('Area not found.');
@@ -74,10 +79,10 @@ class AreasService {
     /**
      * Delete an area.
      */
-    async delete(userId, uid) {
+    async delete(userId, uid, profileId = null) {
         validateUid(uid);
 
-        const area = await areasRepository.findByUid(userId, uid);
+        const area = await areasRepository.findByUid(userId, uid, profileId);
 
         if (!area) {
             throw new NotFoundError('Area not found.');

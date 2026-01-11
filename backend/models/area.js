@@ -32,12 +32,26 @@ module.exports = (sequelize) => {
                     key: 'id',
                 },
             },
+            profile_id: {
+                type: DataTypes.INTEGER,
+                allowNull: true,
+                references: {
+                    model: 'profiles',
+                    key: 'id',
+                },
+            },
         },
         {
             tableName: 'areas',
             indexes: [
                 {
                     fields: ['user_id'],
+                },
+                {
+                    fields: ['profile_id'],
+                },
+                {
+                    fields: ['user_id', 'profile_id'],
                 },
             ],
         }

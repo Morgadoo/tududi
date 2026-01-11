@@ -8,9 +8,13 @@ class ViewsRepository extends BaseRepository {
         super(View);
     }
 
-    async findAllByUser(userId) {
+    async findAllByUser(userId, profileId = null) {
+        const where = { user_id: userId };
+        if (profileId) {
+            where.profile_id = profileId;
+        }
         return this.model.findAll({
-            where: { user_id: userId },
+            where,
             order: [
                 ['is_pinned', 'DESC'],
                 ['created_at', 'DESC'],
@@ -18,21 +22,31 @@ class ViewsRepository extends BaseRepository {
         });
     }
 
-    async findPinnedByUser(userId) {
+    async findPinnedByUser(userId, profileId = null) {
+        const where = { user_id: userId, is_pinned: true };
+        if (profileId) {
+            where.profile_id = profileId;
+        }
         return this.model.findAll({
-            where: { user_id: userId, is_pinned: true },
+            where,
             order: [['created_at', 'DESC']],
         });
     }
 
-    async findByUidAndUser(uid, userId) {
-        return this.model.findOne({
-            where: { uid, user_id: userId },
-        });
+    async findByUidAndUser(uid, userId, profileId = null) {
+        const where = { uid, user_id: userId };
+        if (profileId) {
+            where.profile_id = profileId;
+        }
+        return this.model.findOne({ where });
     }
 
-    async createForUser(userId, data) {
-        return this.model.create({ ...data, user_id: userId });
+    async createForUser(userId, data, profileId = null) {
+        return this.model.create({
+            ...data,
+            user_id: userId,
+            profile_id: profileId,
+        });
     }
 }
 
