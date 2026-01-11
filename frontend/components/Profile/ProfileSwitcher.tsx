@@ -2,12 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useStore } from '../../store/useStore';
-import {
-    ChevronUpDownIcon,
-    CheckIcon,
-    PlusIcon,
-    Cog6ToothIcon,
-} from '@heroicons/react/24/outline';
+import { ChevronUpDownIcon, CheckIcon } from '@heroicons/react/24/outline';
 import ProfileIcon from './ProfileIcon';
 
 interface ProfileSwitcherProps {
@@ -63,11 +58,6 @@ const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
         } catch (error) {
             console.error('Failed to switch profile:', error);
         }
-    };
-
-    const handleManageProfiles = () => {
-        setIsOpen(false);
-        navigate('/profile?section=profiles');
     };
 
     if (!activeProfile) {
@@ -136,18 +126,6 @@ const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
                             )}
                         </button>
                     ))}
-
-                    <div className="border-t border-gray-200 dark:border-gray-700 mt-1 pt-1">
-                        <button
-                            onClick={handleManageProfiles}
-                            className="w-full flex items-center gap-2 px-2 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-600 dark:text-gray-400"
-                        >
-                            <Cog6ToothIcon className="h-4 w-4" />
-                            <span className="text-sm">
-                                {t('profiles.manage', 'Manage Profiles')}
-                            </span>
-                        </button>
-                    </div>
                 </div>
             )}
         </div>
