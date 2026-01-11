@@ -42,19 +42,18 @@ module.exports = (sequelize) => {
             indexes: [
                 {
                     fields: ['user_id'],
-                },
-                {
-                    unique: true,
-                    fields: ['user_id', 'name'],
-                    name: 'tags_user_id_name_unique',
+                    name: 'tags_user_id',
                 },
                 {
                     fields: ['profile_id'],
+                    name: 'tags_profile_id',
                 },
                 {
                     fields: ['user_id', 'profile_id'],
+                    name: 'tags_user_id_profile_id',
                 },
                 {
+                    // Tags are unique per profile - allows same tag name in different profiles
                     unique: true,
                     fields: ['user_id', 'profile_id', 'name'],
                     name: 'tags_user_profile_name_unique',

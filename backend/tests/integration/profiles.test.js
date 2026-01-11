@@ -681,10 +681,7 @@ describe('Profiles Routes', () => {
                 expect(tagNames).not.toContain('personal-tag');
             });
 
-            // NOTE: This test is skipped because the current database has a
-            // legacy unique constraint on (user_id, name) that prevents
-            // same tag names in different profiles. A migration is needed.
-            it.skip('should allow same tag name in different profiles (requires migration)', async () => {
+            it('should allow same tag name in different profiles', async () => {
                 await Tag.create({
                     name: 'urgent',
                     user_id: user.id,

@@ -497,25 +497,33 @@ describe('Tags Routes', () => {
             expect(tag.profile_id).toBe(workProfile.id);
         });
 
-        // NOTE: This test documents current behavior where same tag names
-        // across profiles are NOT allowed due to legacy unique constraint.
-        // A migration is needed to remove the (user_id, name) unique constraint
-        // and keep only (user_id, profile_id, name) to enable profile-scoped tags.
-        it('should prevent duplicate tag names across profiles (legacy behavior)', async () => {
+        it('should allow same tag name in different profiles', async () => {
             // Create 'urgent' in work profile
-            await agent.post('/api/tag').send({ name: 'urgent' });
+            const workResponse = await agent
+                .post('/api/tag')
+                .send({ name: 'urgent' });
+            expect(workResponse.status).toBe(201);
 
             // Switch to personal profile
             await agent.patch(`/api/v1/profiles/switch/${personalProfile.uid}`);
 
-            // Create 'urgent' in personal profile - currently fails due to legacy constraint
-            const response = await agent.post('/api/tag').send({
+            // Create 'urgent' in personal profile - should succeed (tags are profile-scoped)
+            const personalResponse = await agent.post('/api/tag').send({
                 name: 'urgent',
             });
 
-            // Current behavior: 409 Conflict due to (user_id, name) unique constraint
-            // Future behavior after migration: should be 201 Created
-            expect(response.status).toBe(409);
+            expect(personalResponse.status).toBe(201);
+
+            // Verify both tags exist in their respective profiles
+            const workTags = await Tag.findAll({
+                where: { user_id: user.id, profile_id: workProfile.id },
+            });
+            const personalTags = await Tag.findAll({
+                where: { user_id: user.id, profile_id: personalProfile.id },
+            });
+
+            expect(workTags.some((t) => t.name === 'urgent')).toBe(true);
+            expect(personalTags.some((t) => t.name === 'urgent')).toBe(true);
         });
 
         it('should see different tags after profile switch', async () => {
