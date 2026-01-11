@@ -70,9 +70,12 @@ const logStatusChange = async (
     newStatus,
     metadata = {}
 ) => {
-    let eventType = 'status_changed';
-    if (newStatus === 2) eventType = 'completed';
-    else if (newStatus === 3) eventType = 'archived';
+    const eventType =
+        newStatus === 2
+            ? 'completed'
+            : newStatus === 3
+              ? 'archived'
+              : 'status_changed';
 
     return await logEvent({
         taskId,
@@ -194,9 +197,11 @@ const logDescriptionChange = async (
 const getEventType = (fieldName, newValue) => {
     switch (fieldName) {
         case 'status':
-            if (newValue === 2) return 'completed';
-            if (newValue === 3) return 'archived';
-            return 'status_changed';
+            return newValue === 2
+                ? 'completed'
+                : newValue === 3
+                  ? 'archived'
+                  : 'status_changed';
         default:
             return `${fieldName}_changed`;
     }

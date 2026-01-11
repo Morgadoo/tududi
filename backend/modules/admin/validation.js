@@ -6,7 +6,7 @@ const { ValidationError } = require('../../shared/errors');
  * Validate user ID parameter.
  */
 function validateUserId(id) {
-    const parsed = Number.parseInt(id, 10);
+    const parsed = parseInt(id, 10);
     if (!Number.isFinite(parsed)) {
         throw new ValidationError('Invalid user id');
     }

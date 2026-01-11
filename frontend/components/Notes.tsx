@@ -11,10 +11,14 @@ import { MagnifyingGlassIcon, PlusIcon } from '@heroicons/react/24/solid';
 import {
     PencilIcon,
     TrashIcon,
+    FolderIcon,
+    TagIcon as TagIconOutline,
+    ClockIcon,
     EllipsisVerticalIcon,
+    XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { useToast } from './Shared/ToastContext';
-import { useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { SortOption } from './Shared/SortFilterButton';
 import NoteModal from './Note/NoteModal';
 import ConfirmDialog from './Shared/ConfirmDialog';
@@ -22,10 +26,6 @@ import DiscardChangesDialog from './Shared/DiscardChangesDialog';
 import MarkdownRenderer from './Shared/MarkdownRenderer';
 import IconSortDropdown from './Shared/IconSortDropdown';
 import TagInput from './Tag/TagInput';
-import NoteListItem from './Note/NoteListItem';
-import NoteColorPicker from './Note/NoteColorPicker';
-import NoteSaveStatus from './Note/NoteSaveStatus';
-import NoteMetadata from './Note/NoteMetadata';
 import { Note } from '../entities/Note';
 import { createNote, updateNote } from '../utils/notesService';
 import { deleteNoteWithStoreUpdate } from '../utils/noteDeleteUtils';
@@ -254,7 +254,7 @@ const Notes: React.FC = () => {
     };
 
     const handleSaveInlineNote = async () => {
-        if (!editingNote?.title) return;
+        if (!editingNote || !editingNote.title) return;
 
         try {
             if (editingNote.tags && editingNote.tags.length > 0) {
@@ -563,13 +563,42 @@ const Notes: React.FC = () => {
                                 </div>
                             ) : (
                                 sortedNotes.map((note, index) => (
-                                    <NoteListItem
+                                    <div
                                         key={note.uid}
-                                        note={note}
-                                        isSelected={previewNote?.uid === note.uid}
-                                        isLast={index === sortedNotes.length - 1}
-                                        onSelect={handleSelectNote}
-                                    />
+                                        onClick={() => handleSelectNote(note)}
+                                        className={`relative p-5 cursor-pointer ${
+                                            previewNote?.uid === note.uid
+                                                ? 'bg-white dark:bg-gray-900 border-b border-transparent mx-4 rounded-lg'
+                                                : index !==
+                                                    sortedNotes.length - 1
+                                                  ? 'border-b border-gray-200/30 dark:border-gray-700/30 hover:bg-gray-50 dark:hover:bg-gray-800 mx-4'
+                                                  : 'border-b border-transparent hover:bg-gray-50 dark:hover:bg-gray-800 mx-4'
+                                        }`}
+                                    >
+                                        {previewNote?.uid === note.uid && (
+                                            <span className="absolute inset-y-0 left-0 w-1 bg-blue-400 dark:bg-blue-500 rounded-l-md pointer-events-none" />
+                                        )}
+                                        <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 truncate mb-1">
+                                            {note.title ||
+                                                t(
+                                                    'notes.untitled',
+                                                    'Untitled Note'
+                                                )}
+                                        </h3>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
+                                            {note.content.substring(0, 100)}
+                                            {note.content.length > 100
+                                                ? '...'
+                                                : ''}
+                                        </p>
+                                        <div className="text-xs text-gray-400 dark:text-gray-500 mt-2">
+                                            {new Date(
+                                                note.updated_at ||
+                                                    note.created_at ||
+                                                    ''
+                                            ).toLocaleDateString()}
+                                        </div>
+                                    </div>
                                 ))
                             )}
                         </div>
@@ -709,7 +738,23 @@ const Notes: React.FC = () => {
                                             </div>
                                             {editingNote.title && (
                                                 <div className="flex items-center">
-                                                    <NoteSaveStatus status={saveStatus} />
+                                                    {saveStatus ===
+                                                        'saving' && (
+                                                        <span className="text-blue-500 dark:text-blue-400 italic">
+                                                            Saving...
+                                                        </span>
+                                                    )}
+                                                    {saveStatus === 'saved' && (
+                                                        <span className="text-green-600 dark:text-green-400">
+                                                            ✓ Saved
+                                                        </span>
+                                                    )}
+                                                    {saveStatus ===
+                                                        'unsaved' && (
+                                                        <span className="text-amber-600 dark:text-amber-400">
+                                                            • Unsaved changes
+                                                        </span>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
@@ -741,40 +786,94 @@ const Notes: React.FC = () => {
                                         {showNoteOptionsDropdown && (
                                             <div className="absolute right-0 mt-1 w-56 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-50">
                                                 {ENABLE_NOTE_COLOR && (
-                                                    <NoteColorPicker
-                                                        colors={NOTE_COLORS}
-                                                        selectedColor={editingNote.color}
-                                                        onColorChange={(color) =>
-                                                            handleColorChange(color, editingNote)
-                                                        }
-                                                    />
+                                                    <div className="px-3 py-3 border-b border-gray-200 dark:border-gray-700">
+                                                        <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">
+                                                            Background Color
+                                                        </div>
+                                                        <div className="grid grid-cols-5 gap-2">
+                                                            {NOTE_COLORS.map(
+                                                                (
+                                                                    colorOption
+                                                                ) => (
+                                                                    <button
+                                                                        key={
+                                                                            colorOption.value
+                                                                        }
+                                                                        onClick={() =>
+                                                                            handleColorChange(
+                                                                                colorOption.value,
+                                                                                editingNote
+                                                                            )
+                                                                        }
+                                                                        className={`w-8 h-8 rounded-md border-2 transition-all hover:scale-110 flex items-center justify-center ${
+                                                                            editingNote.color ===
+                                                                            colorOption.value
+                                                                                ? 'border-blue-500 dark:border-blue-400 ring-2 ring-blue-200 dark:ring-blue-800'
+                                                                                : 'border-gray-300 dark:border-gray-600'
+                                                                        }`}
+                                                                        style={{
+                                                                            backgroundColor:
+                                                                                colorOption.value ||
+                                                                                '#ffffff',
+                                                                        }}
+                                                                        title={
+                                                                            colorOption.name
+                                                                        }
+                                                                        aria-label={`Set background to ${colorOption.name}`}
+                                                                    >
+                                                                        {!colorOption.value && (
+                                                                            <XMarkIcon className="h-5 w-5 text-gray-400" />
+                                                                        )}
+                                                                    </button>
+                                                                )
+                                                            )}
+                                                        </div>
+                                                    </div>
                                                 )}
                                                 <div className="py-1">
                                                     <button
                                                         onClick={() => {
-                                                            if (editingNote.title) {
+                                                            if (
+                                                                editingNote.title
+                                                            ) {
                                                                 handleSaveInlineNote();
                                                             } else {
-                                                                setShowDiscardDialog(true);
+                                                                setShowDiscardDialog(
+                                                                    true
+                                                                );
                                                             }
-                                                            setShowNoteOptionsDropdown(false);
+                                                            setShowNoteOptionsDropdown(
+                                                                false
+                                                            );
                                                         }}
                                                         className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
                                                     >
                                                         <PencilIcon className="h-4 w-4" />
-                                                        {t('notes.save', 'Save')}
+                                                        {t(
+                                                            'notes.save',
+                                                            'Save'
+                                                        )}
                                                     </button>
                                                     {editingNote.uid && (
                                                         <button
                                                             onClick={() => {
-                                                                setNoteToDelete(editingNote);
-                                                                setIsConfirmDialogOpen(true);
-                                                                setShowNoteOptionsDropdown(false);
+                                                                setNoteToDelete(
+                                                                    editingNote
+                                                                );
+                                                                setIsConfirmDialogOpen(
+                                                                    true
+                                                                );
+                                                                setShowNoteOptionsDropdown(
+                                                                    false
+                                                                );
                                                             }}
                                                             className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
                                                         >
                                                             <TrashIcon className="h-4 w-4" />
-                                                            {t('notes.delete', 'Delete')}
+                                                            {t(
+                                                                'notes.delete',
+                                                                'Delete'
+                                                            )}
                                                         </button>
                                                     )}
                                                 </div>
@@ -1060,35 +1159,87 @@ const Notes: React.FC = () => {
                                         {showNoteOptionsDropdown && (
                                             <div className="absolute right-0 mt-1 w-56 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-50">
                                                 {ENABLE_NOTE_COLOR && (
-                                                    <NoteColorPicker
-                                                        colors={NOTE_COLORS}
-                                                        selectedColor={previewNote.color}
-                                                        onColorChange={(color) =>
-                                                            handleColorChange(color, previewNote)
-                                                        }
-                                                    />
+                                                    <div className="px-3 py-3 border-b border-gray-200 dark:border-gray-700">
+                                                        <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">
+                                                            Background Color
+                                                        </div>
+                                                        <div className="grid grid-cols-5 gap-2">
+                                                            {NOTE_COLORS.map(
+                                                                (
+                                                                    colorOption
+                                                                ) => (
+                                                                    <button
+                                                                        key={
+                                                                            colorOption.value
+                                                                        }
+                                                                        onClick={() =>
+                                                                            handleColorChange(
+                                                                                colorOption.value,
+                                                                                previewNote
+                                                                            )
+                                                                        }
+                                                                        className={`w-8 h-8 rounded-md border-2 transition-all hover:scale-110 flex items-center justify-center ${
+                                                                            previewNote.color ===
+                                                                            colorOption.value
+                                                                                ? 'border-blue-500 dark:border-blue-400 ring-2 ring-blue-200 dark:ring-blue-800'
+                                                                                : 'border-gray-300 dark:border-gray-600'
+                                                                        }`}
+                                                                        style={{
+                                                                            backgroundColor:
+                                                                                colorOption.value ||
+                                                                                '#ffffff',
+                                                                        }}
+                                                                        title={
+                                                                            colorOption.name
+                                                                        }
+                                                                        aria-label={`Set background to ${colorOption.name}`}
+                                                                    >
+                                                                        {!colorOption.value && (
+                                                                            <XMarkIcon className="h-5 w-5 text-gray-400" />
+                                                                        )}
+                                                                    </button>
+                                                                )
+                                                            )}
+                                                        </div>
+                                                    </div>
                                                 )}
                                                 <div className="py-1">
                                                     <button
                                                         onClick={() => {
-                                                            handleEditNote(previewNote);
-                                                            setShowNoteOptionsDropdown(false);
+                                                            handleEditNote(
+                                                                previewNote
+                                                            );
+                                                            setShowNoteOptionsDropdown(
+                                                                false
+                                                            );
                                                         }}
                                                         className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
                                                     >
                                                         <PencilIcon className="h-4 w-4" />
-                                                        {t('notes.edit', 'Edit')}
+                                                        {t(
+                                                            'notes.edit',
+                                                            'Edit'
+                                                        )}
                                                     </button>
                                                     <button
                                                         onClick={() => {
-                                                            setNoteToDelete(previewNote);
-                                                            setIsConfirmDialogOpen(true);
-                                                            setShowNoteOptionsDropdown(false);
+                                                            setNoteToDelete(
+                                                                previewNote
+                                                            );
+                                                            setIsConfirmDialogOpen(
+                                                                true
+                                                            );
+                                                            setShowNoteOptionsDropdown(
+                                                                false
+                                                            );
                                                         }}
                                                         className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
                                                     >
                                                         <TrashIcon className="h-4 w-4" />
-                                                        {t('notes.delete', 'Delete')}
+                                                        {t(
+                                                            'notes.delete',
+                                                            'Delete'
+                                                        )}
                                                     </button>
                                                 </div>
                                             </div>

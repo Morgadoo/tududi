@@ -26,7 +26,7 @@ async function initDatabase() {
 
         if (adminEmail && adminPassword) {
             console.log('\nCreating initial admin user...');
-            await User.create({
+            const adminUser = await User.create({
                 email: adminEmail,
                 password: adminPassword,
                 name: 'Admin',

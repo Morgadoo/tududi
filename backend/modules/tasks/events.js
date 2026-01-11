@@ -137,6 +137,7 @@ router.get('/tasks/completion-analytics', async (req, res) => {
 
         // Get completed tasks for the user
         const { Task, Project } = require('../../models');
+        const { Op } = require('sequelize');
 
         const whereClause = {
             user_id: req.currentUser.id,

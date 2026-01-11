@@ -100,7 +100,7 @@ const KeyboardShortcutsTab: React.FC<KeyboardShortcutsTabProps> = ({
 
             const newShortcut: KeyboardShortcut = {
                 action: editingAction,
-                key,
+                key: key.length === 1 ? key : key,
                 modifiers: {
                     ctrl: event.ctrlKey,
                     alt: event.altKey,
@@ -167,10 +167,7 @@ const KeyboardShortcutsTab: React.FC<KeyboardShortcutsTabProps> = ({
                         )}
                     </p>
                 </div>
-                <button
-                    type="button"
-                    role="switch"
-                    aria-checked={activeConfig.enabled}
+                <div
                     className={`relative inline-block w-12 h-6 transition-colors duration-200 ease-in-out rounded-full cursor-pointer ${
                         activeConfig.enabled
                             ? 'bg-blue-500'
@@ -183,7 +180,7 @@ const KeyboardShortcutsTab: React.FC<KeyboardShortcutsTabProps> = ({
                             activeConfig.enabled ? 'translate-x-6' : 'translate-x-0'
                         }`}
                     ></span>
-                </button>
+                </div>
             </div>
 
             {/* Validation Warnings */}
@@ -193,8 +190,8 @@ const KeyboardShortcutsTab: React.FC<KeyboardShortcutsTabProps> = ({
                         {t('profile.shortcuts.duplicateWarning', 'Duplicate shortcuts detected:')}
                     </p>
                     <ul className="mt-2 text-xs text-yellow-700 dark:text-yellow-300 list-disc list-inside">
-                        {validation.duplicates.map((dup) => (
-                            <li key={dup}>{dup}</li>
+                        {validation.duplicates.map((dup, idx) => (
+                            <li key={idx}>{dup}</li>
                         ))}
                     </ul>
                 </div>
@@ -220,32 +217,24 @@ const KeyboardShortcutsTab: React.FC<KeyboardShortcutsTabProps> = ({
 
                             {isEditing ? (
                                 <div className="flex items-center space-x-2">
-                                    {(() => {
-                                        if (isRecording) {
-                                            return (
-                                                <div className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 border-2 border-blue-400 dark:border-blue-600 rounded text-blue-700 dark:text-blue-300 text-sm font-mono animate-pulse">
-                                                    {t('profile.shortcuts.pressKeys', 'Press keys...')}
-                                                </div>
-                                            );
-                                        }
-                                        if (tempShortcut) {
-                                            return (
-                                                <div className="flex items-center space-x-2">
-                                                    <kbd className="px-3 py-1.5 text-sm font-mono bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded shadow-sm text-gray-700 dark:text-gray-300">
-                                                        {formatShortcutDisplay(tempShortcut)}
-                                                    </kbd>
-                                                    {wouldCreateDuplicate(tempShortcut) && (
-                                                        <span className="text-xs text-yellow-600 dark:text-yellow-400">
-                                                            {t('profile.shortcuts.duplicateWith', 'Conflicts with {{action}}', {
-                                                                action: wouldCreateDuplicate(tempShortcut),
-                                                            })}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            );
-                                        }
-                                        return null;
-                                    })()}
+                                    {isRecording ? (
+                                        <div className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 border-2 border-blue-400 dark:border-blue-600 rounded text-blue-700 dark:text-blue-300 text-sm font-mono animate-pulse">
+                                            {t('profile.shortcuts.pressKeys', 'Press keys...')}
+                                        </div>
+                                    ) : tempShortcut ? (
+                                        <div className="flex items-center space-x-2">
+                                            <kbd className="px-3 py-1.5 text-sm font-mono bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded shadow-sm text-gray-700 dark:text-gray-300">
+                                                {formatShortcutDisplay(tempShortcut)}
+                                            </kbd>
+                                            {wouldCreateDuplicate(tempShortcut) && (
+                                                <span className="text-xs text-yellow-600 dark:text-yellow-400">
+                                                    {t('profile.shortcuts.duplicateWith', 'Conflicts with {{action}}', {
+                                                        action: wouldCreateDuplicate(tempShortcut),
+                                                    })}
+                                                </span>
+                                            )}
+                                        </div>
+                                    ) : null}
                                     <button
                                         type="button"
                                         onClick={handleStartRecording}

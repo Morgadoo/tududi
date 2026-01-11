@@ -1,70 +1,70 @@
 import { test, expect } from '@playwright/test';
 
-async function loginViaUI(page, baseURL) {
-    const appUrl =
-        baseURL ?? process.env.APP_URL ?? 'http://localhost:8080';
-    await page.goto(`${appUrl}/login`);
-
-    await page
-        .getByTestId('login-email')
-        .fill(process.env.E2E_EMAIL || 'test@tududi.com');
-    await page
-        .getByTestId('login-password')
-        .fill(process.env.E2E_PASSWORD || 'password123');
-    await page.getByTestId('login-submit').click();
-
-    await page.waitForURL(/\/(dashboard|today)/, { timeout: 10000 });
-}
-
-async function cleanupInboxItems(context, appUrl, contentPattern: string) {
-    const response = await context.request.get(`${appUrl}/api/inbox`);
-    if (response.ok()) {
-        const data = await response.json();
-        const items = data.items || data;
-        for (const item of items) {
-            if (item.content.includes(contentPattern)) {
-                await context.request.delete(
-                    `${appUrl}/api/inbox/${item.uid}`
-                );
-            }
-        }
-    }
-}
-
-async function cleanupTags(context, appUrl, tagNames: string[]) {
-    const response = await context.request.get(`${appUrl}/api/tags`);
-    if (response.ok()) {
-        const tags = await response.json();
-        for (const tagName of tagNames) {
-            const tag = tags.find(
-                (t) => t.name.toLowerCase() === tagName.toLowerCase()
-            );
-            if (tag) {
-                await context.request.delete(`${appUrl}/api/tags/${tag.id}`);
-            }
-        }
-    }
-}
-
-async function cleanupProjects(context, appUrl, projectNames: string[]) {
-    const response = await context.request.get(`${appUrl}/api/projects`);
-    if (response.ok()) {
-        const data = await response.json();
-        const projects = data.projects || data;
-        for (const projectName of projectNames) {
-            const project = projects.find(
-                (p) => p.name.toLowerCase() === projectName.toLowerCase()
-            );
-            if (project) {
-                await context.request.delete(
-                    `${appUrl}/api/projects/${project.id}`
-                );
-            }
-        }
-    }
-}
-
 test.describe('Inbox', () => {
+    async function loginViaUI(page, baseURL) {
+        const appUrl =
+            baseURL ?? process.env.APP_URL ?? 'http://localhost:8080';
+        await page.goto(`${appUrl}/login`);
+
+        await page
+            .getByTestId('login-email')
+            .fill(process.env.E2E_EMAIL || 'test@tududi.com');
+        await page
+            .getByTestId('login-password')
+            .fill(process.env.E2E_PASSWORD || 'password123');
+        await page.getByTestId('login-submit').click();
+
+        await page.waitForURL(/\/(dashboard|today)/, { timeout: 10000 });
+    }
+
+    async function cleanupInboxItems(context, appUrl, contentPattern: string) {
+        const response = await context.request.get(`${appUrl}/api/inbox`);
+        if (response.ok()) {
+            const data = await response.json();
+            const items = data.items || data;
+            for (const item of items) {
+                if (item.content.includes(contentPattern)) {
+                    await context.request.delete(
+                        `${appUrl}/api/inbox/${item.uid}`
+                    );
+                }
+            }
+        }
+    }
+
+    async function cleanupTags(context, appUrl, tagNames: string[]) {
+        const response = await context.request.get(`${appUrl}/api/tags`);
+        if (response.ok()) {
+            const tags = await response.json();
+            for (const tagName of tagNames) {
+                const tag = tags.find(
+                    (t) => t.name.toLowerCase() === tagName.toLowerCase()
+                );
+                if (tag) {
+                    await context.request.delete(`${appUrl}/api/tags/${tag.id}`);
+                }
+            }
+        }
+    }
+
+    async function cleanupProjects(context, appUrl, projectNames: string[]) {
+        const response = await context.request.get(`${appUrl}/api/projects`);
+        if (response.ok()) {
+            const data = await response.json();
+            const projects = data.projects || data;
+            for (const projectName of projectNames) {
+                const project = projects.find(
+                    (p) => p.name.toLowerCase() === projectName.toLowerCase()
+                );
+                if (project) {
+                    await context.request.delete(
+                        `${appUrl}/api/projects/${project.id}`
+                    );
+                }
+            }
+        }
+    }
+
     test.describe('Navigation', () => {
         test('clicking inbox button navigates to inbox and focuses input', async ({
             page,

@@ -94,12 +94,12 @@ const extractFirstUrlFromText = (text: string): string | null => {
     }
 
     const withProtocolMatch = text.match(urlWithProtocolRegex);
-    if (withProtocolMatch?.[0]) {
+    if (withProtocolMatch && withProtocolMatch[0]) {
         return withProtocolMatch[0];
     }
 
     const withoutProtocolMatch = text.match(urlWithoutProtocolRegex);
-    if (withoutProtocolMatch?.[1]) {
+    if (withoutProtocolMatch && withoutProtocolMatch[1]) {
         return withoutProtocolMatch[1];
     }
 
@@ -305,7 +305,7 @@ const QuickCaptureInput = React.forwardRef<
                 }
 
                 setUrlPreview((prev) => {
-                    if (prev?.url !== normalizedUrl) {
+                    if (!prev || prev.url !== normalizedUrl) {
                         return prev;
                     }
 
@@ -340,7 +340,7 @@ const QuickCaptureInput = React.forwardRef<
                 return;
             }
 
-            if (urlPreview?.url === normalized) {
+            if (urlPreview && urlPreview.url === normalized) {
                 return;
             }
 
@@ -794,7 +794,7 @@ const QuickCaptureInput = React.forwardRef<
             message: string | null;
             projectName: string | null;
         } => {
-            if (!analysisResult?.suggested_type) {
+            if (!analysisResult || !analysisResult.suggested_type) {
                 return { type: null, message: null, projectName: null };
             }
 
@@ -804,10 +804,9 @@ const QuickCaptureInput = React.forwardRef<
             if (type === 'note') {
                 const isUrlNote =
                     analysisResult.suggested_reason === 'url_detected';
-                const projectSuffix = projectName ? ` for ${projectName}` : '';
                 const message = isUrlNote
-                    ? `Will be saved as a bookmark note${projectSuffix}.`
-                    : `Will be saved as a note${projectSuffix}.`;
+                    ? `Will be saved as a bookmark note${projectName ? ` for ${projectName}` : ''}.`
+                    : `Will be saved as a note${projectName ? ` for ${projectName}` : ''}.`;
 
                 return {
                     type: 'note',
@@ -815,12 +814,9 @@ const QuickCaptureInput = React.forwardRef<
                     projectName,
                 };
             } else if (type === 'task') {
-                const taskProjectSuffix = projectName
-                    ? ` under ${projectName}`
-                    : '';
                 return {
                     type: 'task',
-                    message: `Will be created as a task${taskProjectSuffix}.`,
+                    message: `Will be created as a task${projectName ? ` under ${projectName}` : ''}.`,
                     projectName,
                 };
             }
@@ -1337,7 +1333,7 @@ const QuickCaptureInput = React.forwardRef<
                                                 : undefined,
                                             completed_at: null,
                                         };
-                                        openTaskModal(newTask);
+                                        void openTaskModal(newTask);
                                         composerFooterContext.clearText();
                                     }}
                                     className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 dark:text-blue-200 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/40 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-200 dark:focus:ring-offset-gray-900"

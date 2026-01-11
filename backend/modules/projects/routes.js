@@ -2,8 +2,8 @@
 
 const express = require('express');
 const multer = require('multer');
-const path = require('node:path');
-const fs = require('node:fs');
+const path = require('path');
+const fs = require('fs');
 const { getConfig } = require('../../config/config');
 const config = getConfig();
 const router = express.Router();

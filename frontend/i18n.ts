@@ -229,7 +229,7 @@ window.forceLanguageReload = (lng?: string) => {
         .then(() => {
             dispatchLanguageChangeEvent(targetLng);
 
-            if (i18n.services?.resourceStore) {
+            if (i18n.services && i18n.services.resourceStore) {
                 Object.values(i18n.services.resourceStore.data).forEach(
                     (lang) => {
                         if (

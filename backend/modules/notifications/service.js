@@ -7,8 +7,8 @@ class NotificationsService {
     async getAll(userId, options) {
         const { limit = 10, offset = 0, includeRead = 'true', type } = options;
         return notificationsRepository.getUserNotifications(userId, {
-            limit: Number.parseInt(limit, 10),
-            offset: Number.parseInt(offset, 10),
+            limit: parseInt(limit),
+            offset: parseInt(offset),
             includeRead: includeRead === 'true',
             type: type || null,
         });

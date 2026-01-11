@@ -154,7 +154,7 @@ const TimezoneDropdown: React.FC<TimezoneDropdownProps> = ({
 
                         {/* Grouped timezones */}
                         {Object.keys(groupedFilteredTimezones)
-                            .sort((a, b) => a.localeCompare(b))
+                            .sort()
                             .map((regionName) => (
                                 <div key={regionName}>
                                     <div className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 sticky top-0">

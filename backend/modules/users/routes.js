@@ -2,8 +2,8 @@
 
 const express = require('express');
 const multer = require('multer');
-const path = require('node:path');
-const fs = require('node:fs').promises;
+const path = require('path');
+const fs = require('fs').promises;
 const router = express.Router();
 const usersController = require('./controller');
 const { apiKeyManagementLimiter } = require('../../middleware/rateLimiter');

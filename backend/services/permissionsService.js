@@ -14,63 +14,75 @@ async function getSharedUidsForUser(resourceType, userId) {
     return Array.from(set);
 }
 
-// Check if user has access through a parent project
-async function getAccessViaProject(projectId, userId, getAccessFn) {
-    if (!projectId) return null;
-
-    const project = await Project.findOne({
-        where: { id: projectId },
-        attributes: ['uid'],
-        raw: true,
-    });
-
-    if (!project) return null;
-
-    const projectAccess = await getAccessFn(userId, 'project', project.uid);
-    return projectAccess === ACCESS.NONE ? null : projectAccess;
-}
-
-// Check ownership for a resource type
-async function checkOwnership(resourceType, resourceUid, userId) {
-    const models = { project: Project, task: Task, note: Note };
-    const Model = models[resourceType];
-
-    if (!Model) return { found: false };
-
-    const attributes =
-        resourceType === 'project' ? ['user_id'] : ['user_id', 'project_id'];
-
-    const resource = await Model.findOne({
-        where: { uid: resourceUid },
-        attributes,
-        raw: true,
-    });
-
-    if (!resource) return { found: false };
-    if (resource.user_id === userId) return { found: true, isOwner: true };
-
-    return { found: true, isOwner: false, projectId: resource.project_id };
-}
-
 async function getAccess(userId, resourceType, resourceUid) {
     if (await isAdmin(userId)) return ACCESS.ADMIN;
 
-    const ownership = await checkOwnership(resourceType, resourceUid, userId);
+    // ownership via model
+    if (resourceType === 'project') {
+        const proj = await Project.findOne({
+            where: { uid: resourceUid },
+            attributes: ['user_id'],
+            raw: true,
+        });
+        if (!proj) return ACCESS.NONE;
+        if (proj.user_id === userId) return ACCESS.RW;
+    } else if (resourceType === 'task') {
+        const t = await Task.findOne({
+            where: { uid: resourceUid },
+            attributes: ['user_id', 'project_id'],
+            raw: true,
+        });
+        if (!t) return ACCESS.NONE;
+        if (t.user_id === userId) return ACCESS.RW;
 
-    if (!ownership.found) return ACCESS.NONE;
-    if (ownership.isOwner) return ACCESS.RW;
+        // Check if user has access through the parent project
+        if (t.project_id) {
+            const project = await Project.findOne({
+                where: { id: t.project_id },
+                attributes: ['uid'],
+                raw: true,
+            });
+            if (project) {
+                const projectAccess = await getAccess(
+                    userId,
+                    'project',
+                    project.uid
+                );
+                if (projectAccess !== ACCESS.NONE) {
+                    return projectAccess; // Inherit access from project
+                }
+            }
+        }
+    } else if (resourceType === 'note') {
+        const n = await Note.findOne({
+            where: { uid: resourceUid },
+            attributes: ['user_id', 'project_id'],
+            raw: true,
+        });
+        if (!n) return ACCESS.NONE;
+        if (n.user_id === userId) return ACCESS.RW;
 
-    // For tasks/notes, check project-level access
-    if (ownership.projectId) {
-        const projectAccess = await getAccessViaProject(
-            ownership.projectId,
-            userId,
-            getAccess
-        );
-        if (projectAccess) return projectAccess;
+        // Check if user has access through the parent project
+        if (n.project_id) {
+            const project = await Project.findOne({
+                where: { id: n.project_id },
+                attributes: ['uid'],
+                raw: true,
+            });
+            if (project) {
+                const projectAccess = await getAccess(
+                    userId,
+                    'project',
+                    project.uid
+                );
+                if (projectAccess !== ACCESS.NONE) {
+                    return projectAccess; // Inherit access from project
+                }
+            }
+        }
     }
 
-    // Check direct sharing permissions
+    // shared
     const perm = await Permission.findOne({
         where: {
             user_id: userId,
@@ -89,6 +101,22 @@ async function ownershipOrPermissionWhere(resourceType, userId, cache = null) {
     if (cache && cache.has(cacheKey)) {
         return cache.get(cacheKey);
     }
+
+    // Build WHERE clause for resource queries based on ownership and sharing permissions
+    // Note: isAdmin expects a UID, but we might receive a numeric ID
+    // Get the user's UID if we received a numeric ID
+    let userUid = userId;
+    if (typeof userId === 'number' || !isNaN(parseInt(userId))) {
+        const { User } = require('../models');
+        const user = await User.findByPk(userId, {
+            attributes: ['uid', 'email'],
+        });
+        if (user) {
+            userUid = user.uid;
+        }
+    }
+
+    const isUserAdmin = await isAdmin(userUid);
 
     // Admin users should NOT see all resources automatically
     // They should only see their own resources and shared resources, like regular users

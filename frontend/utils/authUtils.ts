@@ -35,5 +35,5 @@ export const handleAuthResponse = async (
 };
 
 export const isAuthError = (error: any): boolean => {
-    return error?.message?.includes('Authentication required') ?? false;
+    return error?.message && error.message.includes('Authentication required');
 };

@@ -29,7 +29,7 @@ async function sendWelcomeMessage(token, chatId) {
             },
         };
 
-        const req = require('node:https').request(url, options, (res) => {
+        const req = require('https').request(url, options, (res) => {
             let data = '';
 
             res.on('data', (chunk) => {
@@ -87,7 +87,7 @@ class TelegramService {
     }
 
     async stopPolling(userId) {
-        telegramPoller.removeUser(userId);
+        const success = telegramPoller.removeUser(userId);
 
         return {
             success: true,

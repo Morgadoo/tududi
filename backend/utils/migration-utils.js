@@ -207,6 +207,7 @@ function resolveDataType(definition) {
 
 function buildDefinitionFromInfo(columnName, info, overrideDefinition = null) {
     const parts = [`\`${columnName}\``];
+    const baseInfo = overrideDefinition || {};
 
     const type = overrideDefinition
         ? resolveDataType(overrideDefinition)

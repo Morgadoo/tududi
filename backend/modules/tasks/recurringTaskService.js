@@ -205,14 +205,11 @@ const shouldGenerateNextTask = (task, nextDate) => {
 
 const calculateVirtualOccurrences = (task, count = 7, startFrom = null) => {
     const occurrences = [];
-    let currentDate;
-    if (startFrom) {
-        currentDate = new Date(startFrom);
-    } else if (task.due_date) {
-        currentDate = new Date(task.due_date);
-    } else {
-        currentDate = new Date();
-    }
+    let currentDate = startFrom
+        ? new Date(startFrom)
+        : task.due_date
+          ? new Date(task.due_date)
+          : new Date();
     let iterationCount = 0;
     const MAX_ITERATIONS = 100;
 

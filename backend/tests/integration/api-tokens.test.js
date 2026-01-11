@@ -4,7 +4,7 @@ const { User, ApiToken, Task, Project, Note } = require('../../models');
 const { createTestUser } = require('../helpers/testUtils');
 
 describe('API Token Authentication', () => {
-    let user, agent, rawToken;
+    let user, agent;
 
     beforeEach(async () => {
         user = await createTestUser({

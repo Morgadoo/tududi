@@ -35,7 +35,7 @@ export const parseDateString = (dateString: string | null | undefined): Date | n
     if (!dateString) return null;
     // Adding T00:00:00 makes JavaScript interpret the date as local time
     const date = new Date(dateString + 'T00:00:00');
-    return Number.isNaN(date.getTime()) ? null : date;
+    return isNaN(date.getTime()) ? null : date;
 };
 
 export const getUserTimezone = (): string => {

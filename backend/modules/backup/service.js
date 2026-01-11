@@ -1,9 +1,9 @@
 'use strict';
 
-const path = require('node:path');
-const fs = require('node:fs').promises;
-const zlib = require('node:zlib');
-const { promisify } = require('node:util');
+const path = require('path');
+const fs = require('fs').promises;
+const zlib = require('zlib');
+const { promisify } = require('util');
 const {
     exportUserData,
     importUserData,

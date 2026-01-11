@@ -38,7 +38,7 @@ export const updateNote = async (
 ): Promise<Note> => {
     // Transform project_id to project_uid if needed
     const requestData = { ...noteData };
-    if (noteData.project?.uid) {
+    if (noteData.project && noteData.project.uid) {
         requestData.project_uid = noteData.project.uid;
     } else if (noteData.project_uid) {
         // project_uid is already set, use it as-is

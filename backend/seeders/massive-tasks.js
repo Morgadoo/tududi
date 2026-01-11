@@ -2,6 +2,12 @@ const { faker } = require('@faker-js/faker');
 
 // Helper function to create massive task data with AI feature triggers
 function createMassiveTaskData(projects, getRandomDate, getPastDate) {
+    // Helper to get random items from array
+    const getRandomItems = (arr, count) => {
+        const shuffled = [...arr].sort(() => 0.5 - Math.random());
+        return shuffled.slice(0, count);
+    };
+
     // Helper to get random priority
     const getRandomPriority = () => Math.floor(Math.random() * 3); // 0, 1, or 2
 

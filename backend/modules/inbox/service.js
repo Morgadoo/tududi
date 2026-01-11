@@ -21,8 +21,8 @@ class InboxService {
         const hasPagination = limit !== undefined || offset !== undefined;
 
         if (hasPagination) {
-            const parsedLimit = Number.parseInt(limit, 10) || 20;
-            const parsedOffset = Number.parseInt(offset, 10) || 0;
+            const parsedLimit = parseInt(limit, 10) || 20;
+            const parsedOffset = parseInt(offset, 10) || 0;
 
             const [items, totalCount] = await Promise.all([
                 inboxRepository.findAllActive(userId, {

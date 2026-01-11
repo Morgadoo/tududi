@@ -83,8 +83,7 @@ module.exports = {
         for (const indexName of indexNames) {
             try {
                 await queryInterface.removeIndex('tasks', indexName);
-            } catch {
-                // Index may not exist, skipping removal is expected behavior
+            } catch (error) {
                 console.log(
                     `Index ${indexName} may not exist, skipping removal`
                 );

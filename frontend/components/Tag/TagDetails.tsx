@@ -51,8 +51,12 @@ const TagDetails: React.FC = () => {
     const [orderBy, setOrderBy] = useState<string>('created_at:desc');
 
     // Filter projects by current tag
-    const projects = allProjects.filter((project: any) =>
-        project.tags?.some((projectTag: any) => projectTag.name === tag?.name)
+    const projects = allProjects.filter(
+        (project: any) =>
+            project.tags &&
+            project.tags.some(
+                (projectTag: any) => projectTag.name === tag?.name
+            )
     );
 
     const projectLookupList = useMemo(() => {
@@ -99,8 +103,7 @@ const TagDetails: React.FC = () => {
 
     // State for note deletion
     const [noteToDelete, setNoteToDelete] = useState<Note | null>(null);
-    const [isNoteConfirmDialogOpen, setIsNoteConfirmDialogOpen] =
-        useState<boolean>(false);
+    const [isNoteConfirmDialogOpen, setIsNoteConfirmDialogOpen] = useState<boolean>(false);
 
     const { showSuccessToast, showErrorToast } = useToast();
     const navigate = useNavigate();
@@ -385,8 +388,8 @@ const TagDetails: React.FC = () => {
         if (note.uid) {
             const slug = note.title
                 .toLowerCase()
-                .replaceAll(/[^a-z0-9]+/g, '-')
-                .replaceAll(/(?:^-|-$)/g, '');
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-|-$/g, '');
             navigate(`/notes/${note.uid}-${slug}`);
         }
     };
@@ -782,10 +785,8 @@ const TagDetails: React.FC = () => {
                         <ul className="space-y-1">
                             {notes.map((note) => {
                                 const noteTags = note.tags || note.Tags || [];
-                                const noteProject =
-                                    note.project || note.Project;
-                                const hasMetadata =
-                                    noteProject || noteTags.length > 0;
+                                const noteProject = note.project || note.Project;
+                                const hasMetadata = noteProject || noteTags.length > 0;
 
                                 return (
                                     <li
@@ -794,9 +795,7 @@ const TagDetails: React.FC = () => {
                                         onMouseEnter={() =>
                                             setHoveredNoteId(note.uid || null)
                                         }
-                                        onMouseLeave={() =>
-                                            setHoveredNoteId(null)
-                                        }
+                                        onMouseLeave={() => setHoveredNoteId(null)}
                                     >
                                         <div className="flex-grow overflow-hidden pr-4">
                                             {/* Note Title */}
@@ -831,24 +830,20 @@ const TagDetails: React.FC = () => {
                                                                     noteProject.uid
                                                                         ? `/project/${noteProject.uid}-${noteProject.name
                                                                               .toLowerCase()
-                                                                              .replaceAll(
+                                                                              .replace(
                                                                                   /[^a-z0-9]+/g,
                                                                                   '-'
                                                                               )
-                                                                              .replaceAll(
-                                                                                  /(?:^-|-$)/g,
+                                                                              .replace(
+                                                                                  /^-|-$/g,
                                                                                   ''
                                                                               )}`
                                                                         : `/project/${noteProject.id}`
                                                                 }
                                                                 className="text-gray-500 dark:text-gray-400 hover:underline transition-colors"
-                                                                onClick={(e) =>
-                                                                    e.stopPropagation()
-                                                                }
+                                                                onClick={(e) => e.stopPropagation()}
                                                             >
-                                                                {
-                                                                    noteProject.name
-                                                                }
+                                                                {noteProject.name}
                                                             </Link>
                                                         </div>
                                                     )}
@@ -857,50 +852,31 @@ const TagDetails: React.FC = () => {
                                                         <div className="flex items-center">
                                                             <TagIcon className="h-3 w-3 mr-1" />
                                                             <span>
-                                                                {noteTags.map(
-                                                                    (
-                                                                        noteTag,
-                                                                        index
-                                                                    ) => (
-                                                                        <React.Fragment
-                                                                            key={
-                                                                                noteTag.id ||
-                                                                                noteTag.name
+                                                                {noteTags.map((noteTag, index) => (
+                                                                    <React.Fragment key={noteTag.id || noteTag.name}>
+                                                                        <Link
+                                                                            to={
+                                                                                noteTag.uid
+                                                                                    ? `/tag/${noteTag.uid}-${noteTag.name
+                                                                                          .toLowerCase()
+                                                                                          .replace(
+                                                                                              /[^a-z0-9]+/g,
+                                                                                              '-'
+                                                                                          )
+                                                                                          .replace(
+                                                                                              /^-|-$/g,
+                                                                                              ''
+                                                                                          )}`
+                                                                                    : `/tag/${encodeURIComponent(noteTag.name)}`
                                                                             }
+                                                                            className="text-gray-500 dark:text-gray-400 hover:underline transition-colors"
+                                                                            onClick={(e) => e.stopPropagation()}
                                                                         >
-                                                                            <Link
-                                                                                to={
-                                                                                    noteTag.uid
-                                                                                        ? `/tag/${noteTag.uid}-${noteTag.name
-                                                                                              .toLowerCase()
-                                                                                              .replaceAll(
-                                                                                                  /[^a-z0-9]+/g,
-                                                                                                  '-'
-                                                                                              )
-                                                                                              .replaceAll(
-                                                                                                  /(?:^-|-$)/g,
-                                                                                                  ''
-                                                                                              )}`
-                                                                                        : `/tag/${encodeURIComponent(noteTag.name)}`
-                                                                                }
-                                                                                className="text-gray-500 dark:text-gray-400 hover:underline transition-colors"
-                                                                                onClick={(
-                                                                                    e
-                                                                                ) =>
-                                                                                    e.stopPropagation()
-                                                                                }
-                                                                            >
-                                                                                {
-                                                                                    noteTag.name
-                                                                                }
-                                                                            </Link>
-                                                                            {index <
-                                                                                noteTags.length -
-                                                                                    1 &&
-                                                                                ', '}
-                                                                        </React.Fragment>
-                                                                    )
-                                                                )}
+                                                                            {noteTag.name}
+                                                                        </Link>
+                                                                        {index < noteTags.length - 1 && ', '}
+                                                                    </React.Fragment>
+                                                                ))}
                                                             </span>
                                                         </div>
                                                     )}
@@ -909,9 +885,7 @@ const TagDetails: React.FC = () => {
                                         </div>
                                         <div className="flex space-x-2 pt-1">
                                             <button
-                                                onClick={() =>
-                                                    handleEditNote(note)
-                                                }
+                                                onClick={() => handleEditNote(note)}
                                                 className={`text-gray-500 hover:text-blue-700 dark:hover:text-blue-300 focus:outline-none transition-opacity ${hoveredNoteId === note.uid ? 'opacity-100' : 'opacity-0'}`}
                                                 aria-label={`Edit ${note.title}`}
                                                 title={`Edit ${note.title}`}
@@ -919,9 +893,7 @@ const TagDetails: React.FC = () => {
                                                 <PencilSquareIcon className="h-5 w-5" />
                                             </button>
                                             <button
-                                                onClick={() =>
-                                                    handleDeleteNoteClick(note)
-                                                }
+                                                onClick={() => handleDeleteNoteClick(note)}
                                                 className={`text-gray-500 hover:text-red-700 dark:hover:text-red-300 focus:outline-none transition-opacity ${hoveredNoteId === note.uid ? 'opacity-100' : 'opacity-0'}`}
                                                 aria-label={`Delete ${note.title}`}
                                                 title={`Delete ${note.title}`}
