@@ -174,11 +174,11 @@ export const getShortcutByAction = (
  * Creates a shortcut string for comparison (used for duplicate detection)
  */
 export const shortcutToString = (shortcut: KeyboardShortcut): string => {
-    const mods = [];
+    const mods: string[] = [];
     if (shortcut.modifiers.ctrl) mods.push('ctrl');
     if (shortcut.modifiers.alt) mods.push('alt');
     if (shortcut.modifiers.shift) mods.push('shift');
     if (shortcut.modifiers.meta) mods.push('meta');
-    mods.sort();
+    mods.sort((a, b) => a.localeCompare(b));
     return `${mods.join('+')}+${shortcut.key.toLowerCase()}`;
 };

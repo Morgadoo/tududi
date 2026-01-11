@@ -62,7 +62,7 @@ const InboxItemDetail: React.FC<InboxItemDetailProps> = ({
                 !containerRef.current.contains(event.target as Node)
             ) {
                 if (composerRef.current) {
-                    void composerRef.current.submit();
+                    composerRef.current.submit().catch(() => {});
                 } else {
                     setIsEditing(false);
                 }
@@ -381,9 +381,9 @@ const InboxItemDetail: React.FC<InboxItemDetailProps> = ({
             };
 
             if (item.uid !== undefined) {
-                void openTaskModal(newTask, item.uid);
+                openTaskModal(newTask, item.uid).catch(() => {});
             } else {
-                void openTaskModal(newTask);
+                openTaskModal(newTask).catch(() => {});
             }
         } catch (error) {
             console.error('Error converting to task:', error);

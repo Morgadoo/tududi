@@ -53,9 +53,9 @@ const TaskHeader: React.FC<TaskHeaderProps> = ({
     isUpcomingView = false,
 }) => {
     const { t } = useTranslation();
-    void _onToggleToday;
-    void _onEdit;
-    void _onDelete;
+    // Intentionally unused props - prefixed with underscore
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const _unusedProps = { _onToggleToday, _onEdit, _onDelete };
     const SubtasksToggleButton = () => {
         if (!hasSubtasks || !onSubtasksToggle) return null;
 
@@ -757,7 +757,7 @@ const TaskWithSubtasks: React.FC<TaskWithSubtasksProps> = (props) => {
         setShowSubtasks(hasSubtasksFromData);
 
         if (!hasSubtasksFromData) {
-            void loadSubtasks();
+            loadSubtasks().catch(() => {});
         }
     }, [props.task.id, props.task.subtasks, loadSubtasks]);
 
