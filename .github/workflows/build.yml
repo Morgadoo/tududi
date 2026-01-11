@@ -1,27 +1,48 @@
 name: Build
 
 on:
-  push:
-    branches:
-      - main
-
+    push:
+        branches:
+            - main
 
 jobs:
-  build:
-    name: Build and analyze
-    runs-on: ubuntu-latest
-    
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
-      - uses: SonarSource/sonarqube-scan-action@v6
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-      # If you wish to fail your job when the Quality Gate is red, uncomment the
-      # following lines. This would typically be used to fail a deployment.
-      # - uses: SonarSource/sonarqube-quality-gate-action@v1
-      #   timeout-minutes: 5
-      #   env:
-      #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    build:
+        name: Build and analyze
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0 # Shallow clones should be disabled for a better relevancy of analysis
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '22'
+                  cache: 'npm'
+
+            - name: Install dependencies
+              run: npm install
+
+            - name: Run backend tests with coverage
+              run: npm run backend:test:coverage
+              env:
+                  NODE_ENV: test
+                  FF_ENABLE_BACKUPS: 'true'
+                  FF_ENABLE_CALENDAR: 'true'
+
+            - name: Run frontend tests with coverage
+              run: npm run frontend:test:coverage
+
+            - name: SonarQube Scan
+              uses: SonarSource/sonarqube-scan-action@v6
+              env:
+                  SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+                  SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+            # If you wish to fail your job when the Quality Gate is red, uncomment the
+            # following lines. This would typically be used to fail a deployment.
+            # - uses: SonarSource/sonarqube-quality-gate-action@v1
+            #   timeout-minutes: 5
+            #   env:
+            #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
