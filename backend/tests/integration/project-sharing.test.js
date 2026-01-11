@@ -495,16 +495,16 @@ describe('Project Sharing Integration Tests', () => {
         test('shared user with RW access can download attachments from shared project task', async () => {
             const path = require('path');
             const fs = require('fs').promises;
+            const crypto = require('crypto');
             const uploadPath = path.join(__dirname, '../../uploads/tasks');
+            const uniqueId = crypto.randomBytes(4).toString('hex');
+            const storedFilename = `task-download-shared-${uniqueId}.pdf`;
 
             // Create upload directory
             await fs.mkdir(uploadPath, { recursive: true });
 
             // Create a test file
-            const testFilePath = path.join(
-                uploadPath,
-                'task-download-shared.pdf'
-            );
+            const testFilePath = path.join(uploadPath, storedFilename);
             await fs.writeFile(testFilePath, 'test download content');
 
             // Owner creates an attachment on the task
@@ -512,18 +512,27 @@ describe('Project Sharing Integration Tests', () => {
                 task_id: taskInSharedProject.id,
                 user_id: ownerUser.id,
                 original_filename: 'download-shared.pdf',
-                stored_filename: 'task-download-shared.pdf',
+                stored_filename: storedFilename,
                 file_size: 1024,
                 mime_type: 'application/pdf',
-                file_path: 'tasks/task-download-shared.pdf',
+                file_path: `tasks/${storedFilename}`,
             });
 
-            // Shared user downloads the attachment
-            const response = await sharedUserAgent.get(
-                `/api/attachments/${attachment.uid}/download`
-            );
+            try {
+                // Shared user downloads the attachment
+                const response = await sharedUserAgent.get(
+                    `/api/attachments/${attachment.uid}/download`
+                );
 
-            expect(response.status).toBe(200);
+                expect(response.status).toBe(200);
+            } finally {
+                // Clean up the test file
+                try {
+                    await fs.unlink(testFilePath);
+                } catch {
+                    // Ignore cleanup errors
+                }
+            }
         });
 
         test('shared user with RO access can view attachments but not upload', async () => {
@@ -586,10 +595,14 @@ describe('Project Sharing Integration Tests', () => {
 
             const path = require('path');
             const fs = require('fs').promises;
+            const crypto = require('crypto');
             const uploadPath = path.join(__dirname, '../../uploads/tasks');
+            const uniqueId = crypto.randomBytes(4).toString('hex');
+            const storedFilename = `task-ro-download-${uniqueId}.pdf`;
+
             await fs.mkdir(uploadPath, { recursive: true });
 
-            const testFilePath = path.join(uploadPath, 'task-ro-download.pdf');
+            const testFilePath = path.join(uploadPath, storedFilename);
             await fs.writeFile(testFilePath, 'test content');
 
             // Owner creates an attachment
@@ -597,23 +610,32 @@ describe('Project Sharing Integration Tests', () => {
                 task_id: taskInSharedProject.id,
                 user_id: ownerUser.id,
                 original_filename: 'ro-test.pdf',
-                stored_filename: 'task-ro-download.pdf',
+                stored_filename: storedFilename,
                 file_size: 1024,
                 mime_type: 'application/pdf',
-                file_path: 'tasks/task-ro-download.pdf',
+                file_path: `tasks/${storedFilename}`,
             });
 
-            // Can download
-            const downloadResponse = await sharedUserAgent.get(
-                `/api/attachments/${attachment.uid}/download`
-            );
-            expect(downloadResponse.status).toBe(200);
+            try {
+                // Can download
+                const downloadResponse = await sharedUserAgent.get(
+                    `/api/attachments/${attachment.uid}/download`
+                );
+                expect(downloadResponse.status).toBe(200);
 
-            // Cannot delete
-            const deleteResponse = await sharedUserAgent.delete(
-                `/api/tasks/${taskInSharedProject.uid}/attachments/${attachment.uid}`
-            );
-            expect(deleteResponse.status).toBe(403);
+                // Cannot delete
+                const deleteResponse = await sharedUserAgent.delete(
+                    `/api/tasks/${taskInSharedProject.uid}/attachments/${attachment.uid}`
+                );
+                expect(deleteResponse.status).toBe(403);
+            } finally {
+                // Clean up the test file
+                try {
+                    await fs.unlink(testFilePath);
+                } catch {
+                    // Ignore cleanup errors
+                }
+            }
         });
     });
 });

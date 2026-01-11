@@ -286,6 +286,13 @@ router.get('/attachments/:attachmentUid/download', async (req, res) => {
 
         // Send file
         const filePath = path.join(config.uploadPath, attachment.file_path);
+
+        // Check if file exists on disk
+        if (!fs.existsSync(filePath)) {
+            logError('Attachment file not found on disk:', filePath);
+            return res.status(404).json({ error: 'Attachment file not found' });
+        }
+
         res.download(filePath, attachment.original_filename);
     } catch (error) {
         logError('Error downloading attachment:', error);
