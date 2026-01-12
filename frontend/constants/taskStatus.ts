@@ -160,3 +160,42 @@ export function isHabitArchived(
 ): boolean {
     return isTaskArchived(status) || isTaskCancelled(status);
 }
+
+// Kanban board column types
+export type KanbanColumnId = 'TODO' | 'IN_PROGRESS' | 'DONE';
+
+// Kanban column configuration
+export const KANBAN_COLUMNS: Record<KanbanColumnId, TaskStatusString[]> = {
+    TODO: ['not_started', 'planned'],
+    IN_PROGRESS: ['in_progress', 'waiting'],
+    DONE: ['done', 'archived', 'cancelled'],
+} as const;
+
+// Default status when dropping into a column
+export const KANBAN_DROP_STATUS: Record<KanbanColumnId, TaskStatusValue> = {
+    TODO: TASK_STATUS.NOT_STARTED,
+    IN_PROGRESS: TASK_STATUS.IN_PROGRESS,
+    DONE: TASK_STATUS.DONE,
+} as const;
+
+/**
+ * Determines which Kanban column a task belongs to based on its status
+ */
+export function getKanbanColumn(
+    status: StatusType | number | undefined | null
+): KanbanColumnId {
+    if (status === undefined || status === null) return 'TODO';
+
+    const statusStr = getStatusString(status);
+
+    if (KANBAN_COLUMNS.TODO.includes(statusStr)) return 'TODO';
+    if (KANBAN_COLUMNS.IN_PROGRESS.includes(statusStr)) return 'IN_PROGRESS';
+    return 'DONE';
+}
+
+/**
+ * Gets the default status value for dropping into a Kanban column
+ */
+export function getKanbanDropStatus(columnId: KanbanColumnId): TaskStatusValue {
+    return KANBAN_DROP_STATUS[columnId];
+}

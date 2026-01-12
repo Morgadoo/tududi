@@ -31,7 +31,9 @@ export const setUserTimezone = (timezone: string): void => {
  * @param dateString - Date string in YYYY-MM-DD format
  * @returns Date object at local midnight, or null if invalid
  */
-export const parseDateString = (dateString: string | null | undefined): Date | null => {
+export const parseDateString = (
+    dateString: string | null | undefined
+): Date | null => {
     if (!dateString) return null;
     // Adding T00:00:00 makes JavaScript interpret the date as local time
     const date = new Date(dateString + 'T00:00:00');
@@ -262,4 +264,76 @@ export const isTaskOverdueInTodayPlan = (task: {
     // This is an approximation - tasks created yesterday or earlier that are in today plan
     // are likely to have been sitting there for a while
     return createdDate.getTime() < yesterday.getTime();
+};
+
+/**
+ * Checks if a date string is overdue (before today)
+ * @param dateString - Date string in YYYY-MM-DD format
+ * @returns True if the date is before today
+ */
+export const isOverdue = (dateString: string | null | undefined): boolean => {
+    if (!dateString) return false;
+    const date = parseDateString(dateString);
+    if (!date) return false;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    date.setHours(0, 0, 0, 0);
+
+    return date < today;
+};
+
+/**
+ * Checks if a date string is today
+ * @param dateString - Date string in YYYY-MM-DD format
+ * @returns True if the date is today
+ */
+export const isToday = (dateString: string | null | undefined): boolean => {
+    if (!dateString) return false;
+    const date = parseDateString(dateString);
+    if (!date) return false;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    date.setHours(0, 0, 0, 0);
+
+    return date.getTime() === today.getTime();
+};
+
+/**
+ * Formats a date string relative to today (e.g., "Today", "Tomorrow", "Jan 15")
+ * @param dateString - Date string in YYYY-MM-DD format
+ * @param t - Translation function from react-i18next
+ * @returns Formatted relative date string
+ */
+export const formatRelativeDate = (
+    dateString: string | null | undefined,
+    t: (key: string, options?: { defaultValue: string }) => string
+): string => {
+    if (!dateString) return '';
+    const date = parseDateString(dateString);
+    if (!date) return '';
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    date.setHours(0, 0, 0, 0);
+
+    if (date.getTime() === today.getTime()) {
+        return t('dates.today', { defaultValue: 'Today' });
+    }
+    if (date.getTime() === tomorrow.getTime()) {
+        return t('dates.tomorrow', { defaultValue: 'Tomorrow' });
+    }
+    if (date.getTime() === yesterday.getTime()) {
+        return t('dates.yesterday', { defaultValue: 'Yesterday' });
+    }
+
+    return formatShortDate(date);
 };
