@@ -42,7 +42,15 @@ import ProjectBanner from './ProjectBanner';
 import BannerEditModal from './BannerEditModal';
 import ProjectTasksSection from './ProjectTasksSection';
 import ProjectNotesSection from './ProjectNotesSection';
+import ProjectKanbanBoard from './ProjectKanbanBoard';
 import { useProjectMetrics } from './useProjectMetrics';
+
+const PROJECT_ACTIVE_TAB_KEY = 'project_active_tab';
+
+const isValidTab = (
+    value: string | null
+): value is 'tasks' | 'board' | 'notes' =>
+    value === 'tasks' || value === 'board' || value === 'notes';
 
 const ProjectDetails: React.FC = () => {
     const UI_OPTIONS_KEY = 'ui_app_options';
@@ -64,7 +72,12 @@ const ProjectDetails: React.FC = () => {
     const [selectedNote, setSelectedNote] = useState<Note | null>(null);
     const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
     const [isBannerEditModalOpen, setIsBannerEditModalOpen] = useState(false);
-    const [activeTab, setActiveTab] = useState<'tasks' | 'notes'>('tasks');
+    const [activeTab, setActiveTab] = useState<'tasks' | 'board' | 'notes'>(
+        () => {
+            const saved = localStorage.getItem(PROJECT_ACTIVE_TAB_KEY);
+            return isValidTab(saved) ? saved : 'tasks';
+        }
+    );
     const [taskStatusFilter, setTaskStatusFilter] = useState<
         'all' | 'active' | 'completed'
     >(() => {
@@ -469,6 +482,11 @@ const ProjectDetails: React.FC = () => {
         localStorage.setItem('project_order_by', newOrderBy);
     };
 
+    const handleTabChange = (tab: 'tasks' | 'board' | 'notes') => {
+        setActiveTab(tab);
+        localStorage.setItem(PROJECT_ACTIVE_TAB_KEY, tab);
+    };
+
     const handleDeleteProject = async () => {
         if (!project?.uid) return;
         await deleteProject(project.uid);
@@ -853,7 +871,7 @@ const ProjectDetails: React.FC = () => {
                         <div className="flex items-center justify-between min-h-[2.5rem]">
                             <div className="flex items-center space-x-3 sm:space-x-6">
                                 <button
-                                    onClick={() => setActiveTab('tasks')}
+                                    onClick={() => handleTabChange('tasks')}
                                     className={`flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm font-medium transition-colors ${
                                         activeTab === 'tasks'
                                             ? 'text-gray-900 dark:text-gray-100'
@@ -868,7 +886,17 @@ const ProjectDetails: React.FC = () => {
                                     )}
                                 </button>
                                 <button
-                                    onClick={() => setActiveTab('notes')}
+                                    onClick={() => handleTabChange('board')}
+                                    className={`flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm font-medium transition-colors ${
+                                        activeTab === 'board'
+                                            ? 'text-gray-900 dark:text-gray-100'
+                                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                                    }`}
+                                >
+                                    <span>{t('sidebar.board', 'Board')}</span>
+                                </button>
+                                <button
+                                    onClick={() => handleTabChange('notes')}
                                     className={`flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm font-medium transition-colors ${
                                         activeTab === 'notes'
                                             ? 'text-gray-900 dark:text-gray-100'
@@ -1070,6 +1098,14 @@ const ProjectDetails: React.FC = () => {
                                 </div>
                             </div>
                         </>
+                    )}
+
+                    {activeTab === 'board' && project && (
+                        <ProjectKanbanBoard
+                            project={project}
+                            tasks={tasks}
+                            onTaskUpdate={handleTaskUpdate}
+                        />
                     )}
 
                     {activeTab === 'notes' && project && (

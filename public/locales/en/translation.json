@@ -30,6 +30,7 @@
         "dashboard": "Dashboard",
         "projects": "Projects",
         "tasks": "Tasks",
+        "board": "Board",
         "calendar": "Calendar",
         "notes": "Notes",
         "settings": "Settings",
@@ -153,6 +154,53 @@
         "showingItems": "Showing {{current}} of {{total}} tasks",
         "noCompletedTasksToday": "No completed tasks today.",
         "markAsDone": "Mark as done"
+    },
+    "kanban": {
+        "todo": "Todo",
+        "inProgress": "In Progress",
+        "done": "Done",
+        "emptyTodo": "No tasks to do",
+        "emptyInProgress": "No tasks in progress",
+        "emptyDone": "No completed tasks",
+        "emptyColumn": "No tasks",
+        "dragHint": "Drag tasks between columns to change status",
+        "dragToMove": "Drag to move",
+        "dropHere": "Drop tasks here or create new ones",
+        "noTasks": "No tasks in this project",
+        "createTaskHint": "Create a task from the Tasks tab to see it here",
+        "filters": {
+            "label": "Show:",
+            "showPlanned": "Show planned tasks",
+            "hidePlanned": "Hide planned tasks",
+            "showWaiting": "Show waiting tasks",
+            "hideWaiting": "Hide waiting tasks",
+            "showCancelled": "Show cancelled tasks",
+            "hideCancelled": "Hide cancelled tasks"
+        }
+    },
+    "status": {
+        "not_started": "Not Started",
+        "in_progress": "In Progress",
+        "done": "Done",
+        "archived": "Archived",
+        "waiting": "Waiting",
+        "cancelled": "Cancelled",
+        "planned": "Planned"
+    },
+    "priority": {
+        "high": "High Priority",
+        "highShort": "High",
+        "medium": "Medium Priority",
+        "mediumShort": "Med",
+        "low": "Low Priority",
+        "lowShort": "Low",
+        "none": "No Priority",
+        "noneShort": "None"
+    },
+    "dates": {
+        "today": "Today",
+        "tomorrow": "Tomorrow",
+        "yesterday": "Yesterday"
     },
     "timeline": {
         "activityTimeline": "Activity Timeline",
