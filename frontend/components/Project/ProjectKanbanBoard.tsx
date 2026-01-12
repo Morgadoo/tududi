@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import {
     DndContext,
     DragEndEvent,
@@ -11,6 +11,11 @@ import {
     closestCorners,
 } from '@dnd-kit/core';
 import { useTranslation } from 'react-i18next';
+import {
+    CalendarIcon,
+    ClockIcon,
+    XCircleIcon,
+} from '@heroicons/react/24/outline';
 import { Task, PriorityType } from '../../entities/Task';
 import { Project } from '../../entities/Project';
 import KanbanColumn from './KanbanColumn';
@@ -19,7 +24,25 @@ import {
     getKanbanColumn,
     getKanbanDropStatus,
     KanbanColumnId,
+    isTaskPlanned,
+    isTaskWaiting,
+    isTaskCancelled,
 } from '../../constants/taskStatus';
+
+// localStorage key for global filter persistence
+const KANBAN_FILTERS_KEY = 'kanban_status_filters';
+
+interface StatusFilters {
+    showPlanned: boolean;
+    showWaiting: boolean;
+    showCancelled: boolean;
+}
+
+const DEFAULT_FILTERS: StatusFilters = {
+    showPlanned: true,
+    showWaiting: true,
+    showCancelled: false, // Hidden by default as requested
+};
 
 interface ProjectKanbanBoardProps {
     project: Project;
@@ -38,6 +61,31 @@ const ProjectKanbanBoard: React.FC<ProjectKanbanBoardProps> = (props) => {
     const { tasks, onTaskUpdate } = props;
     const { t } = useTranslation();
     const [activeTask, setActiveTask] = useState<Task | null>(null);
+
+    // Status filters state with localStorage persistence
+    const [statusFilters, setStatusFilters] = useState<StatusFilters>(() => {
+        try {
+            const saved = localStorage.getItem(KANBAN_FILTERS_KEY);
+            if (saved) {
+                return { ...DEFAULT_FILTERS, ...JSON.parse(saved) };
+            }
+        } catch {
+            // Ignore parse errors
+        }
+        return DEFAULT_FILTERS;
+    });
+
+    // Toggle filter and persist to localStorage
+    const toggleFilter = useCallback((filterKey: keyof StatusFilters) => {
+        setStatusFilters((prev) => {
+            const newFilters = { ...prev, [filterKey]: !prev[filterKey] };
+            localStorage.setItem(
+                KANBAN_FILTERS_KEY,
+                JSON.stringify(newFilters)
+            );
+            return newFilters;
+        });
+    }, []);
 
     // Configure sensors for drag and drop
     const sensors = useSensors(
@@ -70,7 +118,18 @@ const ProjectKanbanBoard: React.FC<ProjectKanbanBoardProps> = (props) => {
         [t]
     );
 
-    // Group tasks by column
+    // Count hidden tasks by status for display
+    const hiddenCounts = useMemo(() => {
+        const parentTasks = tasks.filter((task) => !task.parent_task_id);
+        return {
+            planned: parentTasks.filter((t) => isTaskPlanned(t.status)).length,
+            waiting: parentTasks.filter((t) => isTaskWaiting(t.status)).length,
+            cancelled: parentTasks.filter((t) => isTaskCancelled(t.status))
+                .length,
+        };
+    }, [tasks]);
+
+    // Group tasks by column with filtering
     const tasksByColumn = useMemo(() => {
         const grouped: Record<KanbanColumnId, Task[]> = {
             TODO: [],
@@ -81,7 +140,18 @@ const ProjectKanbanBoard: React.FC<ProjectKanbanBoardProps> = (props) => {
         // Filter out subtasks (only show parent tasks)
         const parentTasks = tasks.filter((task) => !task.parent_task_id);
 
-        parentTasks.forEach((task) => {
+        // Apply status filters
+        const filteredTasks = parentTasks.filter((task) => {
+            if (isTaskPlanned(task.status) && !statusFilters.showPlanned)
+                return false;
+            if (isTaskWaiting(task.status) && !statusFilters.showWaiting)
+                return false;
+            if (isTaskCancelled(task.status) && !statusFilters.showCancelled)
+                return false;
+            return true;
+        });
+
+        filteredTasks.forEach((task) => {
             const column = getKanbanColumn(task.status);
             grouped[column].push(task);
         });
@@ -118,7 +188,7 @@ const ProjectKanbanBoard: React.FC<ProjectKanbanBoardProps> = (props) => {
         });
 
         return grouped;
-    }, [tasks]);
+    }, [tasks, statusFilters]);
 
     // Find task by ID
     const findTaskById = (id: string): Task | undefined => {
@@ -243,6 +313,121 @@ const ProjectKanbanBoard: React.FC<ProjectKanbanBoardProps> = (props) => {
                         'Drag tasks between columns to change status'
                     )}
                 </p>
+            </div>
+
+            {/* Status Filters */}
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+                <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mr-1">
+                    {t('kanban.filters.label', 'Show:')}
+                </span>
+
+                {/* Planned Filter */}
+                <button
+                    onClick={() => toggleFilter('showPlanned')}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border transition-all
+                        ${
+                            statusFilters.showPlanned
+                                ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border-purple-300 dark:border-purple-700'
+                                : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-300 dark:border-gray-600 opacity-60'
+                        }`}
+                    title={
+                        statusFilters.showPlanned
+                            ? t(
+                                  'kanban.filters.hidePlanned',
+                                  'Hide planned tasks'
+                              )
+                            : t(
+                                  'kanban.filters.showPlanned',
+                                  'Show planned tasks'
+                              )
+                    }
+                >
+                    <CalendarIcon className="h-3.5 w-3.5" />
+                    <span>{t('status.planned', 'Planned')}</span>
+                    {hiddenCounts.planned > 0 && (
+                        <span
+                            className={`ml-0.5 px-1.5 py-0.5 rounded text-xs ${
+                                statusFilters.showPlanned
+                                    ? 'bg-purple-200 dark:bg-purple-800'
+                                    : 'bg-gray-200 dark:bg-gray-700'
+                            }`}
+                        >
+                            {hiddenCounts.planned}
+                        </span>
+                    )}
+                </button>
+
+                {/* Waiting Filter */}
+                <button
+                    onClick={() => toggleFilter('showWaiting')}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border transition-all
+                        ${
+                            statusFilters.showWaiting
+                                ? 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300 border-yellow-300 dark:border-yellow-700'
+                                : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-300 dark:border-gray-600 opacity-60'
+                        }`}
+                    title={
+                        statusFilters.showWaiting
+                            ? t(
+                                  'kanban.filters.hideWaiting',
+                                  'Hide waiting tasks'
+                              )
+                            : t(
+                                  'kanban.filters.showWaiting',
+                                  'Show waiting tasks'
+                              )
+                    }
+                >
+                    <ClockIcon className="h-3.5 w-3.5" />
+                    <span>{t('status.waiting', 'Waiting')}</span>
+                    {hiddenCounts.waiting > 0 && (
+                        <span
+                            className={`ml-0.5 px-1.5 py-0.5 rounded text-xs ${
+                                statusFilters.showWaiting
+                                    ? 'bg-yellow-200 dark:bg-yellow-800'
+                                    : 'bg-gray-200 dark:bg-gray-700'
+                            }`}
+                        >
+                            {hiddenCounts.waiting}
+                        </span>
+                    )}
+                </button>
+
+                {/* Cancelled Filter */}
+                <button
+                    onClick={() => toggleFilter('showCancelled')}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border transition-all
+                        ${
+                            statusFilters.showCancelled
+                                ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border-red-300 dark:border-red-700'
+                                : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-300 dark:border-gray-600 opacity-60'
+                        }`}
+                    title={
+                        statusFilters.showCancelled
+                            ? t(
+                                  'kanban.filters.hideCancelled',
+                                  'Hide cancelled tasks'
+                              )
+                            : t(
+                                  'kanban.filters.showCancelled',
+                                  'Show cancelled tasks'
+                              )
+                    }
+                >
+                    <XCircleIcon className="h-3.5 w-3.5" />
+                    <span>{t('status.cancelled', 'Cancelled')}</span>
+                    {hiddenCounts.cancelled > 0 && (
+                        <span
+                            className={`ml-0.5 px-1.5 py-0.5 rounded text-xs ${
+                                statusFilters.showCancelled
+                                    ? 'bg-red-200 dark:bg-red-800'
+                                    : 'bg-gray-200 dark:bg-gray-700'
+                            }`}
+                        >
+                            {hiddenCounts.cancelled}
+                        </span>
+                    )}
+                </button>
             </div>
 
             {/* Kanban Board */}

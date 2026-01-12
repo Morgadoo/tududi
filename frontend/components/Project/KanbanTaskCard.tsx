@@ -371,6 +371,7 @@ const KanbanTaskCard: React.FC<KanbanTaskCardProps> = ({
                 group relative rounded-lg shadow-sm cursor-grab active:cursor-grabbing
                 border ${statusStyles.border} ${statusStyles.bg}
                 ${isActuallyDragging ? 'opacity-60 shadow-xl ring-2 ' + statusStyles.ring + ' scale-105' : ''}
+                ${taskCancelled && !isActuallyDragging ? 'opacity-60' : ''}
                 hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600
                 transition-all duration-200 ease-out
             `}
@@ -462,7 +463,7 @@ const KanbanTaskCard: React.FC<KanbanTaskCardProps> = ({
                         )}
                         <h4
                             className={`text-sm font-medium line-clamp-2 leading-snug ${
-                                taskCompleted
+                                taskCompleted || taskCancelled
                                     ? 'text-gray-500 dark:text-gray-400 line-through'
                                     : 'text-gray-900 dark:text-gray-100'
                             }`}

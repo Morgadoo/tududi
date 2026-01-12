@@ -167,7 +167,16 @@
         "dragToMove": "Drag to move",
         "dropHere": "Drop tasks here or create new ones",
         "noTasks": "No tasks in this project",
-        "createTaskHint": "Create a task from the Tasks tab to see it here"
+        "createTaskHint": "Create a task from the Tasks tab to see it here",
+        "filters": {
+            "label": "Show:",
+            "showPlanned": "Show planned tasks",
+            "hidePlanned": "Hide planned tasks",
+            "showWaiting": "Show waiting tasks",
+            "hideWaiting": "Hide waiting tasks",
+            "showCancelled": "Show cancelled tasks",
+            "hideCancelled": "Hide cancelled tasks"
+        }
     },
     "status": {
         "not_started": "Not Started",
