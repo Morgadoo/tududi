@@ -54,7 +54,14 @@ app.use(
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(
+    express.urlencoded({
+        extended: true,
+        limit: '10mb',
+        parameterLimit: 50, // Explicit limit on number of parameters
+        arrayLimit: 20, // Explicit limit on array indices
+    })
+);
 
 // Session configuration
 app.use(

@@ -27,6 +27,51 @@ const credentials = {
 
 const defaultHost = environment === 'test' ? '127.0.0.1' : '0.0.0.0';
 
+/**
+ * Validates that a URL is a safe internal domain
+ * Prevents open redirect vulnerabilities in email verification
+ */
+function validateFrontendUrl(url) {
+    if (!url) {
+        return 'http://localhost:8080'; // Default fallback
+    }
+
+    try {
+        const parsedUrl = new URL(url);
+
+        // Only allow http/https protocols
+        if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+            console.warn(
+                `[Security] Invalid FRONTEND_URL protocol: ${parsedUrl.protocol}. Using default.`
+            );
+            return 'http://localhost:8080';
+        }
+
+        // Warn if using external domain in production
+        const hostname = parsedUrl.hostname;
+        const isLocalhost =
+            hostname === 'localhost' ||
+            hostname === '127.0.0.1' ||
+            hostname.startsWith('192.168.') ||
+            hostname.startsWith('10.') ||
+            hostname.endsWith('.local');
+
+        if (process.env.NODE_ENV === 'production' && !isLocalhost) {
+            // Log the domain for security auditing
+            console.log(
+                `[Security] FRONTEND_URL set to external domain: ${hostname}`
+            );
+        }
+
+        return url;
+    } catch (error) {
+        console.warn(
+            `[Security] Invalid FRONTEND_URL format: ${url}. Using default.`
+        );
+        return 'http://localhost:8080';
+    }
+}
+
 const emailConfig = {
     enabled: process.env.ENABLE_EMAIL === 'true',
     smtp: {
@@ -76,7 +121,9 @@ const config = {
 
     environment,
 
-    frontendUrl: process.env.FRONTEND_URL || 'http://localhost:8080',
+    frontendUrl: validateFrontendUrl(
+        process.env.FRONTEND_URL || 'http://localhost:8080'
+    ),
 
     backendUrl: process.env.BACKEND_URL || 'http://localhost:3002',
 

@@ -472,7 +472,8 @@ const tasks = await Task.findAll({
 **Optional:**
 - `NODE_ENV` - development, production, test (default: development)
 - `PORT` - Backend port (default: 3002)
-- `FRONTEND_URL` - Frontend origin for CORS
+- `FRONTEND_URL` - Frontend origin for CORS and email verification redirects
+  - **Security Note**: Must be controlled by system administrators only. This URL is used in email verification redirects. The application validates the URL format and protocol (http/https only). Never set this to a user-controlled value or untrusted domain.
 - `BACKEND_URL` - Backend origin
 - `TUDUDI_ALLOWED_ORIGINS` - Comma-separated CORS origins
 - `DB_FILE` - Database path (default: `backend/db/{env}.sqlite3`)
@@ -516,3 +517,5 @@ This project uses SonarQube MCP server for code quality analysis. Important guid
 - **SQLite concurrency:** WAL mode enabled, but be mindful of write-heavy operations
 - **Telegram polling:** State is in-memory; restart clears polling list (users re-added on next check)
 - **Session storage:** Uses Sequelize store, not in-memory; survives restarts
+- **Query string security:** Express is configured with explicit limits (50 parameters, 20 array indices) to prevent DoS attacks via memory exhaustion
+- **URL validation:** FRONTEND_URL is validated to ensure only http/https protocols and logs security warnings for external domains in production
